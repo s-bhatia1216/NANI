@@ -36,16 +36,16 @@ NANI is a full-stack IoT system integrating hardware sensors, cloud services, mo
                       │         NANI System          │
                       └──────────────────────────────┘
 
-       ┌───────────────────────┐           ┌──────────────────────┐
+       ┌───────────────────────┐           ┌──────────────────-────┐
        │     Raspberry Pi      │◄─────────►│       iOS App         │
        │  + IR Beam Sensor     │           │       (Swift)         │
        │                       │           │  • Medication Tracking│
        │                       │           │  • Voice AI Assistant │
        │                       │           │  • Care Circle Portal │
-       └──────────┬────────────┘           └──────────┬───────────┘
+       └──────────┬────────────┘           └──────────┬──────-─────┘
                   │                                   │
                   │                                   │
-                  │                         ┌─────────▼──────────┐
+                  │                         ┌─────────▼───-───────┐
                   │                         │   Node.js Backend   │
                   │                         │ (Express + OpenAI)  │
                   └───────────────────────► │ • Voice Processing  │
@@ -53,7 +53,7 @@ NANI is a full-stack IoT system integrating hardware sensors, cloud services, mo
                                             │ • Care Notifications│
                                             └─────────┬───────────┘
                                                       │
-                                            ┌─────────▼──────────┐
+                                            ┌─────────▼───-───────┐
                                             │   Google Sheets     │
                                             │     (Data Log)      │
                                             └─────────────────────┘
