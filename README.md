@@ -336,7 +336,7 @@ NANI addresses critical challenges in elderly medication management:
 - Created comprehensive hardware setup documentation
 - Ensured seamless integration between hardware and software layers
 
-### Yash Thakkar — App & AI Lead
+### Yash Thakkar — App & AI Engineer
 
 **Responsibilities:**
 - **Frontend Development**: Handles iOS app architecture, UI/UX design, and implementation
