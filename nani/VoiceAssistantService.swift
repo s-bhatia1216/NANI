@@ -48,7 +48,7 @@ enum VoiceAssistantError: LocalizedError {
     }
 }
 
-final class VoiceAssistantService: NSObject {
+final class VoiceAssistantService: NSObject, URLSessionDataDelegate {
     static let shared = VoiceAssistantService()
 
     /// Update this to point to the Node backend (e.g. http://localhost:4000 during development).
@@ -59,7 +59,9 @@ final class VoiceAssistantService: NSObject {
     private var audioPlayer: AVAudioPlayer?
     private var greetingAudioPlayer: AVAudioPlayer?
     private let recordingURL = FileManager.default.temporaryDirectory.appendingPathComponent("nani-voice-query.wav")
-    private let urlSession = URLSession(configuration: .default)
+    private lazy var urlSession: URLSession = {
+        URLSession(configuration: .default, delegate: self, delegateQueue: nil)
+    }()
     private let speechSynthesizer = AVSpeechSynthesizer()
     private var hasPlayedGreeting = false
 
@@ -245,7 +247,7 @@ final class VoiceAssistantService: NSObject {
             audioPlayer?.prepareToPlay()
             audioPlayer?.play()
         } catch {
-            speakFallback("\(error.localizedDescription)")
+            print("oh audio failed")
         }
     }
 

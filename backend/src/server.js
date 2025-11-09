@@ -104,6 +104,15 @@ const CAREGIVER_ROSTER = [
     notes: 'Lives in Seattle; appreciates updates when new symptoms appear.'
   }
 ];
+const SHEET_ID = process.env.GOOGLE_SHEET_ID || '1t7M0WSvLJXgy0RUafI29wZBj9heO8mOOuIGdA5Lzqxs';
+const SHEET_GID = process.env.GOOGLE_SHEET_GID || '0';
+const SHEET_REFRESH_MS = Number(process.env.GOOGLE_SHEET_REFRESH_MS || 1_000);
+const SHEET_ZERO_COOLDOWN_MS = Number(process.env.GOOGLE_SHEET_ZERO_COOLDOWN_MS || 10_000);
+let cachedSheetEntry = null;
+let lastSheetFetchedAt = null;
+let sheetPoller = null;
+let lastZeroNotificationAt = 0;
+const sheetEventClients = new Set();
 
 if (!process.env.OPENAI_API_KEY) {
   throw new Error('OPENAI_API_KEY is required. Add it to your environment or .env file.');
@@ -141,6 +150,27 @@ app.get('/health', (_req, res) => {
     ttsModel: TTS_MODEL,
     voice: VOICE,
     format: AUDIO_FORMAT
+  });
+});
+
+app.get('/debug/sheet', (_req, res) => {
+  res.json({
+    sheetId: SHEET_ID,
+    gid: SHEET_GID,
+    fetchedAt: lastSheetFetchedAt,
+    latestEntry: cachedSheetEntry
+  });
+});
+
+app.get('/events/sheet', (req, res) => {
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.flushHeaders();
+  res.write(`event: connected\ndata: {}\n\n`);
+  sheetEventClients.add(res);
+  req.on('close', () => {
+    sheetEventClients.delete(res);
   });
 });
 
@@ -197,7 +227,7 @@ app.post('/api/voice-exchange', upload.single('audio'), async (req, res) => {
 // --------------------------------------------------------
     const promptBlocks = [
       DEMO_PERSONA_PROMPT.trim(),
-      buildDemoScenarioContext(),
+      buildDemoScenarioContext(cachedSheetEntry),
       (req.body?.context || '').trim()
     ].filter(Boolean);
     const systemPrompt = promptBlocks.join('\n\n');
@@ -255,7 +285,7 @@ app.post('/api/voice-exchange', upload.single('audio'), async (req, res) => {
 // Helpers
 // --------------------------------------------------------
 
-function buildDemoScenarioContext() {
+function buildDemoScenarioContext(sheetEntry) {
   const now = new Date();
   const friendlyDate = new Intl.DateTimeFormat('en-US', {
     weekday: 'long',
@@ -271,6 +301,7 @@ function buildDemoScenarioContext() {
   const caregivers = CAREGIVER_ROSTER.map(
     (c) => `${c.name} – ${c.relation}. Contact: ${c.phone}. Notes: ${c.notes}`
   ).join('\n- ');
+  const sheetSummary = formatSheetEntry(sheetEntry);
 
   return [
     `Today is ${friendlyDate}. Patient: Maya Sharma, 75, lives in San Jose by herself.`,
@@ -279,9 +310,133 @@ function buildDemoScenarioContext() {
     `- ${caregivers}`,
     'Today’s medication plan:',
     `- ${medsAgenda}`,
+    sheetSummary ? `Latest care log from Google Sheet:\n${sheetSummary}` : null,
     'Goals: keep blood pressure in range, encourage hydration, confirm she has eaten before the noon Metformin.',
     'If Maya confirms taking a dose, celebrate it and remind her it is logged. If she misses or feels unwell, suggest checking BP and calling Yash or Sonal.'
-  ].join('\n');
+  ].filter(Boolean).join('\n');
+}
+
+async function startSheetPoller() {
+  if (!SHEET_ID) return;
+  await refreshSheetEntry();
+  sheetPoller = setInterval(refreshSheetEntry, SHEET_REFRESH_MS);
+}
+
+async function refreshSheetEntry() {
+  if (!SHEET_ID) return;
+  const entry = await fetchSheetEntryFromSource();
+  if (entry) {
+    cachedSheetEntry = entry;
+    lastSheetFetchedAt = new Date().toISOString();
+    console.log('[sheet] refreshed at', lastSheetFetchedAt);
+    console.log('[sheet] latest entry', entry);
+    handleSheetTriggers(entry);
+  }
+}
+
+async function fetchSheetEntryFromSource() {
+  if (!SHEET_ID) return null;
+  try {
+    const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&gid=${SHEET_GID}`;
+    const response = await fetch(url);
+    if (!response.ok) {
+      const body = await response.text();
+      console.warn('[sheet] Failed to fetch latest entry', response.status, body.slice(0, 200));
+      return null;
+    }
+    const csv = await response.text();
+    const rows = parseCsv(csv);
+    if (rows.length <= 1) {
+      return null;
+    }
+    const headers = rows[0];
+    const dataRows = rows
+      .slice(1)
+      .filter((row) => row.some((cell) => cell && cell.trim().length > 0));
+    if (dataRows.length === 0) return null;
+    const latest = dataRows[dataRows.length - 1];
+    const entry = {};
+    headers.forEach((header, index) => {
+      entry[header.trim() || `Column${index + 1}`] = (latest[index] || '').trim();
+    });
+    return entry;
+  } catch (error) {
+    console.warn('[sheet] Unable to fetch latest entry', error);
+    return null;
+  }
+}
+
+function parseCsv(text) {
+  const rows = [];
+  let row = [];
+  let current = '';
+  let inQuotes = false;
+
+  for (let i = 0; i < text.length; i++) {
+    const char = text[i];
+    const next = text[i + 1];
+    if (char === '"') {
+      if (inQuotes && next === '"') {
+        current += '"';
+        i++;
+      } else {
+        inQuotes = !inQuotes;
+      }
+    } else if (char === ',' && !inQuotes) {
+      row.push(current);
+      current = '';
+    } else if ((char === '\n' || char === '\r') && !inQuotes) {
+      if (row.length || current) {
+        row.push(current);
+        rows.push(row);
+        row = [];
+        current = '';
+      }
+    } else {
+      current += char;
+    }
+  }
+  if (row.length || current) {
+    row.push(current);
+    rows.push(row);
+  }
+  return rows;
+}
+
+function formatSheetEntry(entry) {
+  if (!entry) return '';
+  const timestamp = entry.Timestamp || entry.Time || entry.Date || '';
+  const summary = Object.entries(entry)
+    .filter(([, value]) => value && value.trim().length > 0)
+    .map(([key, value]) => `${key}: ${value}`)
+    .join('; ');
+  return timestamp ? `${timestamp} – ${summary}` : summary;
+}
+
+function handleSheetTriggers(entry) {
+  if (!entry) return;
+  const values = Object.values(entry).map((value) => (value ?? '').toString().trim());
+  const hasZero = values.includes('0');
+  if (!hasZero) return;
+  const now = Date.now();
+  if (now - lastZeroNotificationAt < SHEET_ZERO_COOLDOWN_MS) {
+    return;
+  }
+  lastZeroNotificationAt = now;
+  const message = {
+    type: 'pillDetected',
+    timestamp: new Date().toISOString(),
+    entry
+  };
+  const payload = `event: pillDetected\ndata: ${JSON.stringify(message)}\n\n`;
+  sheetEventClients.forEach((client) => {
+    try {
+      client.write(payload);
+    } catch (error) {
+      console.warn('[sheet] failed to notify client', error);
+      sheetEventClients.delete(client);
+    }
+  });
 }
 
 function inferAudioFormat(file) {
@@ -320,6 +475,8 @@ function mimeForFormat(fmt) {
 // --------------------------------------------------------
 // Start Server
 // --------------------------------------------------------
+
+startSheetPoller().catch((err) => console.warn('[sheet] poller failed to start', err));
 
 app.listen(PORT, HOST, () => {
   console.log(`✅ Voice backend listening on http://${HOST}:${PORT}`);
