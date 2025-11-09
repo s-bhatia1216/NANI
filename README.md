@@ -3,6 +3,7 @@
 <img src="nani_logo.png" alt="NANI Logo" width="250" align="right" style="margin-right: 20px; margin-bottom: 10px;"> 
 
 > *"Nani" means grandmother in Hindi—a symbol of warmth, care, and gentle guidance. NANI is an AI-powered medication adherence system, a voice that speaks her language (English, Hindi, Spanish, or any other), designed to help elderly patients like Maya Sharma stay healthy, independent, and connected to their care circle of family members and doctors.*
+🎥 [Watch the Demo Video](https://youtu.be/y7C8Kh3Aam4)
 
 ## 🌟 The Story Behind NANI 
 Imagine Maya Sharma, a 75-year-old living alone in San Jose, managing multiple medications for thyroid, blood pressure, diabetes, and cholesterol. Her days are filled with pills at different times—some on an empty stomach, some with meals, some only when needed. Her family worries: *Did she remember? Did she take the right dose? Is she feeling okay?*
