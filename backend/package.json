@@ -16,5 +16,11 @@
   },
   "devDependencies": {
     "nodemon": "^3.0.3"
+  },
+  "pythonDependencies": {
+    "RPi.GPIO": "latest",
+    "fastapi": "latest",
+    "pydantic": "latest",
+    "requests": "latest"
   }
 }
