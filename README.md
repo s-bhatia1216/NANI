@@ -7,7 +7,7 @@
 ## 🌟 The Story Behind NANI 
 Imagine Maya Sharma, a 75-year-old living alone in San Jose, managing multiple medications for thyroid, blood pressure, diabetes, and cholesterol. Her days are filled with pills at different times—some on an empty stomach, some with meals, some only when needed. Her family worries: *Did she remember? Did she take the right dose? Is she feeling okay?*
 
-NANI was born from a simple truth: **medication adherence isn't just about technology—it's about dignity, independence, and peace of mind.**
+Missed doses cause **nearly 1 in 3 hospital readmissions**, and we wanted to fix that with empathy and smart tech. NANI was born from a simple truth: **medication adherence isn't just about technology—it's about dignity, independence, and peace of mind.**
 
 For Maya, NANI is more than a reminder system. It's a voice that speaks her language (English and Hindi), understands her concerns, and connects her to her care circle of doctors, nurses, and family members she designates. When Maya takes her medication, an invisible IR beam detects it. When she has questions, she asks NANI through her phone. 
 
