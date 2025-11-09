@@ -6,7 +6,6 @@
 
 
 ## 🌟 The Story Behind NANI
-
 Imagine Maya Sharma, a 75-year-old living alone in San Jose, managing multiple medications for thyroid, blood pressure, diabetes, and cholesterol. Her days are filled with pills at different times—some on an empty stomach, some with meals, some only when needed. Her family worries: *Did she remember? Did she take the right dose? Is she feeling okay?*
 
 NANI was born from a simple truth: **medication adherence isn't just about technology—it's about dignity, independence, and peace of mind.**
