@@ -10,16 +10,25 @@ import UIKit
 class SideMenuViewController: UIViewController {
     
     private let tableView = UITableView(frame: .zero, style: .insetGrouped)
+    private let headerNameLabel = UILabel()
     
     private struct MenuSection {
-        let title: String
+        let title: LocalizedText
         let items: [MenuItem]
+        
+        var localizedTitle: String {
+            LocalizationManager.shared.localized(title)
+        }
     }
     
     private struct MenuItem {
-        let title: String
+        let title: LocalizedText
         let icon: String
         let action: () -> Void
+        
+        var localizedTitle: String {
+            LocalizationManager.shared.localized(title)
+        }
     }
     
     private var sections: [MenuSection] = []
@@ -30,6 +39,7 @@ class SideMenuViewController: UIViewController {
         setupUI()
         setupSections()
         setupTheme()
+        updateLocalizedStrings()
         
         NotificationCenter.default.addObserver(
             self,
@@ -37,11 +47,18 @@ class SideMenuViewController: UIViewController {
             name: .themeDidChange,
             object: nil
         )
+        
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(languageDidChange),
+            name: .languageDidChange,
+            object: nil
+        )
     }
     
     private func setupUI() {
         view.backgroundColor = ThemeManager.shared.backgroundColor
-        title = "Settings"
+        title = LocalizationManager.shared.localized(english: "Settings", hindi: "सेटिंग्स")
         
         // Header with profile
         let headerView = UIView(frame: CGRect(x: 0, y: 0, width: view.bounds.width, height: 120))
@@ -60,12 +77,11 @@ class SideMenuViewController: UIViewController {
         }
         headerView.addSubview(profileImageView)
         
-        let nameLabel = UILabel()
-        nameLabel.translatesAutoresizingMaskIntoConstraints = false
-        nameLabel.text = "Maya Sharma"
-        nameLabel.font = UIFont.boldSystemFont(ofSize: 20)
-        nameLabel.textColor = ThemeManager.shared.textColor
-        headerView.addSubview(nameLabel)
+        headerNameLabel.translatesAutoresizingMaskIntoConstraints = false
+        headerNameLabel.text = LocalizationManager.shared.localized(english: "Maya Sharma", hindi: "माया शर्मा")
+        headerNameLabel.font = UIFont.boldSystemFont(ofSize: 20)
+        headerNameLabel.textColor = ThemeManager.shared.textColor
+        headerView.addSubview(headerNameLabel)
         
         NSLayoutConstraint.activate([
             profileImageView.topAnchor.constraint(equalTo: headerView.topAnchor, constant: 20),
@@ -73,8 +89,8 @@ class SideMenuViewController: UIViewController {
             profileImageView.widthAnchor.constraint(equalToConstant: 80),
             profileImageView.heightAnchor.constraint(equalToConstant: 80),
             
-            nameLabel.centerYAnchor.constraint(equalTo: profileImageView.centerYAnchor),
-            nameLabel.leadingAnchor.constraint(equalTo: profileImageView.trailingAnchor, constant: 16)
+            headerNameLabel.centerYAnchor.constraint(equalTo: profileImageView.centerYAnchor),
+            headerNameLabel.leadingAnchor.constraint(equalTo: profileImageView.trailingAnchor, constant: 16)
         ])
         
         tableView.tableHeaderView = headerView
@@ -95,33 +111,34 @@ class SideMenuViewController: UIViewController {
     
     private func setupSections() {
         sections = [
-            MenuSection(title: "Appearance", items: [
-                MenuItem(title: "Dark Mode", icon: "moon.fill") { [weak self] in
+            MenuSection(title: LocalizedText(english: "Appearance", hindi: "रूप-रंग"), items: [
+                MenuItem(title: LocalizedText(english: "Dark Mode", hindi: "डार्क मोड"), icon: "moon.fill") { [weak self] in
                     self?.showThemeOptions()
                 }
             ]),
-            MenuSection(title: "Language", items: [
-                MenuItem(title: "Language Settings", icon: "globe") { [weak self] in
+            MenuSection(title: LocalizedText(english: "Language", hindi: "भाषा"), items: [
+                MenuItem(title: LocalizedText(english: "Language Settings", hindi: "भाषा सेटिंग्स"), icon: "globe") { [weak self] in
                     self?.showLanguageOptions()
                 }
             ]),
-            MenuSection(title: "Account", items: [
-                MenuItem(title: "Profile", icon: "person.fill") { [weak self] in
+            MenuSection(title: LocalizedText(english: "Account", hindi: "खाता"), items: [
+                MenuItem(title: LocalizedText(english: "Profile", hindi: "प्रोफ़ाइल"), icon: "person.fill") { [weak self] in
                     self?.showProfile()
                 },
-                MenuItem(title: "Care Circle", icon: "person.2.fill") { [weak self] in
+                MenuItem(title: LocalizedText(english: "Care Circle", hindi: "केयर सर्कल"), icon: "person.2.fill") { [weak self] in
                     self?.showCareCircle()
                 }
             ]),
-            MenuSection(title: "Support", items: [
-                MenuItem(title: "Help & Tutorial", icon: "questionmark.circle.fill") { [weak self] in
+            MenuSection(title: LocalizedText(english: "Support", hindi: "सहायता"), items: [
+                MenuItem(title: LocalizedText(english: "Help & Tutorial", hindi: "सहायता और ट्यूटोरियल"), icon: "questionmark.circle.fill") { [weak self] in
                     self?.showHelp()
                 },
-                MenuItem(title: "Contact Support", icon: "envelope.fill") { [weak self] in
+                MenuItem(title: LocalizedText(english: "Contact Support", hindi: "समर्थन से संपर्क करें"), icon: "envelope.fill") { [weak self] in
                     self?.showContactSupport()
                 }
             ])
         ]
+        tableView.reloadData()
     }
     
     private func createPlaceholderProfileImage() -> UIImage? {
@@ -139,6 +156,13 @@ class SideMenuViewController: UIViewController {
     private func setupTheme() {
         view.backgroundColor = ThemeManager.shared.backgroundColor
         tableView.backgroundColor = ThemeManager.shared.backgroundColor
+        headerNameLabel.textColor = ThemeManager.shared.textColor
+        tableView.reloadData()
+    }
+    
+    private func updateLocalizedStrings() {
+        title = LocalizationManager.shared.localized(english: "Settings", hindi: "सेटिंग्स")
+        headerNameLabel.text = LocalizationManager.shared.localized(english: "Maya Sharma", hindi: "माया शर्मा")
         tableView.reloadData()
     }
     
@@ -146,22 +170,31 @@ class SideMenuViewController: UIViewController {
         setupTheme()
     }
     
+    @objc private func languageDidChange() {
+        updateLocalizedStrings()
+    }
+    
     private func showThemeOptions() {
-        let alert = UIAlertController(title: "Appearance", message: "Choose your preferred theme", preferredStyle: .actionSheet)
+        let manager = LocalizationManager.shared
+        let alert = UIAlertController(
+            title: manager.localized(english: "Appearance", hindi: "रूप-रंग"),
+            message: manager.localized(english: "Choose your preferred theme", hindi: "अपनी पसंदीदा थीम चुनें"),
+            preferredStyle: .actionSheet
+        )
         
-        alert.addAction(UIAlertAction(title: "Light", style: .default) { _ in
+        alert.addAction(UIAlertAction(title: manager.localized(english: "Light", hindi: "हल्का"), style: .default) { _ in
             ThemeManager.shared.setTheme(.light)
         })
         
-        alert.addAction(UIAlertAction(title: "Dark", style: .default) { _ in
+        alert.addAction(UIAlertAction(title: manager.localized(english: "Dark", hindi: "गहरा"), style: .default) { _ in
             ThemeManager.shared.setTheme(.dark)
         })
         
-        alert.addAction(UIAlertAction(title: "System", style: .default) { _ in
+        alert.addAction(UIAlertAction(title: manager.localized(english: "System", hindi: "सिस्टम"), style: .default) { _ in
             ThemeManager.shared.setTheme(.system)
         })
         
-        alert.addAction(UIAlertAction(title: "Cancel", style: .cancel))
+        alert.addAction(UIAlertAction(title: manager.localized(english: "Cancel", hindi: "रद्द करें"), style: .cancel))
         
         if let popover = alert.popoverPresentationController {
             popover.sourceView = view
@@ -173,16 +206,43 @@ class SideMenuViewController: UIViewController {
     }
     
     private func showLanguageOptions() {
-        let alert = UIAlertController(title: "Language", message: "Select your preferred language", preferredStyle: .actionSheet)
+        let manager = LocalizationManager.shared
+        let alert = UIAlertController(
+            title: manager.localized(english: "Language", hindi: "भाषा"),
+            message: manager.localized(english: "Select your preferred language", hindi: "अपनी पसंदीदा भाषा चुनें"),
+            preferredStyle: .actionSheet
+        )
         
-        let languages = ["English", "Spanish", "Hindi", "Mandarin", "French", "Arabic"]
-        for language in languages {
-            alert.addAction(UIAlertAction(title: language, style: .default) { _ in
-                print("Selected language: \(language)")
-            })
+        let options: [(LocalizedText, AppLanguage?)] = [
+            (LocalizedText(english: "English", hindi: "अंग्रेज़ी"), .english),
+            (LocalizedText(english: "Hindi", hindi: "हिन्दी"), .hindi),
+            (LocalizedText(english: "Spanish", hindi: "स्पैनिश"), nil),
+            (LocalizedText(english: "Mandarin", hindi: "मंदारिन"), nil),
+            (LocalizedText(english: "French", hindi: "फ़्रेंच"), nil),
+            (LocalizedText(english: "Arabic", hindi: "अरबी"), nil)
+        ]
+        
+        options.forEach { entry in
+            let (label, language) = entry
+            let baseTitle = manager.localized(label)
+            let actionTitle: String
+            if let language, manager.isCurrentLanguage(language) {
+                actionTitle = "\(baseTitle) ✓"
+            } else {
+                actionTitle = baseTitle
+            }
+            
+            let action = UIAlertAction(title: actionTitle, style: .default) { _ in
+                guard let language else {
+                    print("Language option coming soon: \(label.english)")
+                    return
+                }
+                LocalizationManager.shared.setLanguage(language)
+            }
+            alert.addAction(action)
         }
         
-        alert.addAction(UIAlertAction(title: "Cancel", style: .cancel))
+        alert.addAction(UIAlertAction(title: manager.localized(english: "Cancel", hindi: "रद्द करें"), style: .cancel))
         
         if let popover = alert.popoverPresentationController {
             popover.sourceView = view
@@ -206,14 +266,19 @@ class SideMenuViewController: UIViewController {
     }
     
     private func showContactSupport() {
-        let alert = UIAlertController(title: "Contact Support", message: "How would you like to contact us?", preferredStyle: .actionSheet)
-        alert.addAction(UIAlertAction(title: "Voice Call", style: .default) { _ in
+        let manager = LocalizationManager.shared
+        let alert = UIAlertController(
+            title: manager.localized(english: "Contact Support", hindi: "समर्थन से संपर्क करें"),
+            message: manager.localized(english: "How would you like to contact us?", hindi: "आप हमसे कैसे संपर्क करना चाहेंगे?"),
+            preferredStyle: .actionSheet
+        )
+        alert.addAction(UIAlertAction(title: manager.localized(english: "Voice Call", hindi: "वॉइस कॉल"), style: .default) { _ in
             // TODO: Initiate voice call
         })
-        alert.addAction(UIAlertAction(title: "Email", style: .default) { _ in
+        alert.addAction(UIAlertAction(title: manager.localized(english: "Email", hindi: "ईमेल"), style: .default) { _ in
             // TODO: Open email
         })
-        alert.addAction(UIAlertAction(title: "Cancel", style: .cancel))
+        alert.addAction(UIAlertAction(title: manager.localized(english: "Cancel", hindi: "रद्द करें"), style: .cancel))
         
         if let popover = alert.popoverPresentationController {
             popover.sourceView = view
@@ -235,14 +300,14 @@ extension SideMenuViewController: UITableViewDataSource, UITableViewDelegate {
     }
     
     func tableView(_ tableView: UITableView, titleForHeaderInSection section: Int) -> String? {
-        return sections[section].title
+        return sections[section].localizedTitle
     }
     
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         let cell = tableView.dequeueReusableCell(withIdentifier: "Cell", for: indexPath)
         let item = sections[indexPath.section].items[indexPath.row]
         
-        cell.textLabel?.text = item.title
+        cell.textLabel?.text = item.localizedTitle
         cell.textLabel?.textColor = ThemeManager.shared.textColor
         cell.imageView?.image = UIImage(systemName: item.icon)
         cell.imageView?.tintColor = ThemeManager.shared.primaryBlue

@@ -3,14 +3,23 @@ import Foundation
 struct MedicationLog: Identifiable, Equatable {
     let id: UUID
     let date: Date
-    let displayText: String
-    let detailText: String?
+    let displayText: LocalizedText
+    let detailText: LocalizedText?
 
-    init(id: UUID = UUID(), date: Date = Date(), displayText: String, detailText: String? = nil) {
+    init(id: UUID = UUID(), date: Date = Date(), displayText: LocalizedText, detailText: LocalizedText? = nil) {
         self.id = id
         self.date = date
         self.displayText = displayText
         self.detailText = detailText
+    }
+    
+    var localizedDisplayText: String {
+        LocalizationManager.shared.localized(displayText)
+    }
+    
+    var localizedDetailText: String? {
+        guard let detailText else { return nil }
+        return LocalizationManager.shared.localized(detailText)
     }
 }
 
@@ -26,7 +35,7 @@ final class MedicationLogManager {
         seedMockLogsIfNeeded()
     }
 
-    func logMedication(displayText: String, detailText: String? = nil, date: Date = Date()) {
+    func logMedication(displayText: LocalizedText, detailText: LocalizedText? = nil, date: Date = Date()) {
         let newLog = MedicationLog(date: date, displayText: displayText, detailText: detailText)
         queue.async(flags: .barrier) { [weak self] in
             guard let self else { return }
@@ -55,23 +64,23 @@ final class MedicationLogManager {
         logs = [
             MedicationLog(
                 date: now,
-                displayText: "Took Lisinopril",
-                detailText: "8:00 AM • 10mg"
+                displayText: LocalizedText(english: "Took Lisinopril", hindi: "लिसिनोप्रिल ली"),
+                detailText: LocalizedText(english: "8:00 AM • 10mg", hindi: "सुबह 8:00 बजे • 10 मिलीग्राम")
             ),
             MedicationLog(
                 date: calendar.date(byAdding: .hour, value: -3, to: now) ?? now,
-                displayText: "Asked about side effects",
-                detailText: "AI assistant responded in Hindi"
+                displayText: LocalizedText(english: "Asked about side effects", hindi: "साइड इफेक्ट्स के बारे में पूछा"),
+                detailText: LocalizedText(english: "AI assistant responded in Hindi", hindi: "एआई सहायक ने हिंदी में जवाब दिया")
             ),
             MedicationLog(
                 date: calendar.date(byAdding: .day, value: -1, to: now) ?? now,
-                displayText: "Marked Metformin as taken",
-                detailText: "8:00 PM • 500mg"
+                displayText: LocalizedText(english: "Marked Metformin as taken", hindi: "मेटफॉर्मिन को लिया हुआ दर्ज किया"),
+                detailText: LocalizedText(english: "8:00 PM • 500mg", hindi: "रात 8:00 बजे • 500 मिलीग्राम")
             ),
             MedicationLog(
                 date: calendar.date(byAdding: .day, value: -1, to: now) ?? now,
-                displayText: "Son checked activity",
-                detailText: "Yash viewed today’s medication log"
+                displayText: LocalizedText(english: "Son checked activity", hindi: "बेटे ने गतिविधि देखी"),
+                detailText: LocalizedText(english: "Yash viewed today’s medication log", hindi: "यश ने आज की दवाई का लॉग देखा")
             )
         ]
     }

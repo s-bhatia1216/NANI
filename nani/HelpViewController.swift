@@ -11,19 +11,29 @@ class HelpViewController: UIViewController {
     
     private let scrollView = UIScrollView()
     private let contentView = UIView()
+    private let tutorialButton = UIButton(type: .custom)
+    private var helpCardLabels: [(titleLabel: UILabel, descriptionLabel: UILabel, titleText: LocalizedText, descriptionText: LocalizedText)] = []
     
     override func viewDidLoad() {
         super.viewDidLoad()
         setupUI()
         setupTheme()
+        updateLocalizedStrings()
         
-        title = "Help & Tutorial"
+        title = LocalizationManager.shared.localized(english: "Help & Tutorial", hindi: "सहायता और ट्यूटोरियल")
         navigationController?.navigationBar.prefersLargeTitles = true
         
         NotificationCenter.default.addObserver(
             self,
             selector: #selector(themeDidChange),
             name: .themeDidChange,
+            object: nil
+        )
+        
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(languageDidChange),
+            name: .languageDidChange,
             object: nil
         )
     }
@@ -41,45 +51,45 @@ class HelpViewController: UIViewController {
         stackView.axis = .vertical
         stackView.spacing = 24
         contentView.addSubview(stackView)
+        helpCardLabels.removeAll()
         
         // Welcome Section
         let welcomeCard = createHelpCard(
-            title: "Welcome to Nani",
-            description: "Your AI-powered medication assistant designed to help you manage your medications easily through voice commands.",
+            title: LocalizedText(english: "Welcome to Nani", hindi: "नानी में आपका स्वागत है"),
+            description: LocalizedText(english: "Your AI-powered medication assistant designed to help you manage your medications easily through voice commands.", hindi: "आपका एआई संचालित दवाई सहायक जो आपको आवाज़ द्वारा आसानी से दवाइयों का प्रबंधन करने में मदद करता है।"),
             icon: "heart.fill"
         )
         stackView.addArrangedSubview(welcomeCard)
         
         // Voice Commands Section
         let voiceCard = createHelpCard(
-            title: "Using Voice Commands",
-            description: "Tap the microphone button to ask questions about your medications. You can ask in your native language, and the AI will respond in the same language.",
+            title: LocalizedText(english: "Using Voice Commands", hindi: "वॉइस कमांड का उपयोग"),
+            description: LocalizedText(english: "Tap the microphone button to ask questions about your medications. You can ask in your native language, and the AI will respond in the same language.", hindi: "अपनी दवाइयों के बारे में प्रश्न पूछने के लिए माइक्रोफ़ोन बटन पर टैप करें। आप अपनी मातृभाषा में पूछ सकते हैं और एआई उसी भाषा में जवाब देगा।"),
             icon: "mic.fill"
         )
         stackView.addArrangedSubview(voiceCard)
         
         // Medications Section
         let medsCard = createHelpCard(
-            title: "Managing Medications",
-            description: "View all your medications, schedules, and dosages. Mark medications as taken or set reminders.",
+            title: LocalizedText(english: "Managing Medications", hindi: "दवाइयों का प्रबंधन"),
+            description: LocalizedText(english: "View all your medications, schedules, and dosages. Mark medications as taken or set reminders.", hindi: "अपनी सभी दवाइयों, समय-सारणी और खुराक को देखें। दवाइयों को लिया हुआ चिह्नित करें या रिमाइंडर सेट करें।"),
             icon: "pills.fill"
         )
         stackView.addArrangedSubview(medsCard)
         
         // Care Circle Section
         let careCard = createHelpCard(
-            title: "Care Circle",
-            description: "Stay connected with family members and healthcare providers. They can see your medication schedule and chat with you.",
+            title: LocalizedText(english: "Care Circle", hindi: "केयर सर्कल"),
+            description: LocalizedText(english: "Stay connected with family members and healthcare providers. They can see your medication schedule and chat with you.", hindi: "परिवार के सदस्यों और स्वास्थ्य सेवा प्रदाताओं से जुड़े रहें। वे आपकी दवाई का समय-सारणी देख सकते हैं और आपसे बात कर सकते हैं।"),
             icon: "person.2.fill"
         )
         stackView.addArrangedSubview(careCard)
         
         // Tutorial Button
-        let tutorialButton = UIButton(type: .custom)
         tutorialButton.translatesAutoresizingMaskIntoConstraints = false
         tutorialButton.backgroundColor = ThemeManager.shared.lightBlue
         tutorialButton.layer.cornerRadius = 16
-        tutorialButton.setTitle("Start Interactive Tutorial", for: .normal)
+        tutorialButton.setTitle(LocalizationManager.shared.localized(english: "Start Interactive Tutorial", hindi: "इंटरैक्टिव ट्यूटोरियल शुरू करें"), for: .normal)
         tutorialButton.setTitleColor(ThemeManager.shared.primaryBlue, for: .normal)
         tutorialButton.titleLabel?.font = UIFont.boldSystemFont(ofSize: 18)
         tutorialButton.addTarget(self, action: #selector(tutorialTapped), for: .touchUpInside)
@@ -106,7 +116,7 @@ class HelpViewController: UIViewController {
         ])
     }
     
-    private func createHelpCard(title: String, description: String, icon: String) -> UIView {
+    private func createHelpCard(title: LocalizedText, description: LocalizedText, icon: String) -> UIView {
         let card = UIView()
         card.translatesAutoresizingMaskIntoConstraints = false
         card.backgroundColor = ThemeManager.shared.secondaryBackgroundColor
@@ -119,18 +129,20 @@ class HelpViewController: UIViewController {
         
         let titleLabel = UILabel()
         titleLabel.translatesAutoresizingMaskIntoConstraints = false
-        titleLabel.text = title
+        titleLabel.text = LocalizationManager.shared.localized(title)
         titleLabel.font = UIFont.boldSystemFont(ofSize: 20)
         titleLabel.textColor = ThemeManager.shared.textColor
         card.addSubview(titleLabel)
         
         let descriptionLabel = UILabel()
         descriptionLabel.translatesAutoresizingMaskIntoConstraints = false
-        descriptionLabel.text = description
+        descriptionLabel.text = LocalizationManager.shared.localized(description)
         descriptionLabel.font = UIFont.systemFont(ofSize: 16)
         descriptionLabel.textColor = ThemeManager.shared.secondaryTextColor
         descriptionLabel.numberOfLines = 0
         card.addSubview(descriptionLabel)
+        
+        helpCardLabels.append((titleLabel, descriptionLabel, title, description))
         
         NSLayoutConstraint.activate([
             iconView.topAnchor.constraint(equalTo: card.topAnchor, constant: 20),
@@ -153,6 +165,11 @@ class HelpViewController: UIViewController {
     
     private func setupTheme() {
         view.backgroundColor = ThemeManager.shared.backgroundColor
+        tutorialButton.setTitleColor(ThemeManager.shared.primaryBlue, for: .normal)
+        helpCardLabels.forEach { labels in
+            labels.titleLabel.textColor = ThemeManager.shared.textColor
+            labels.descriptionLabel.textColor = ThemeManager.shared.secondaryTextColor
+        }
     }
     
     @objc private func themeDidChange() {
@@ -160,13 +177,34 @@ class HelpViewController: UIViewController {
         view.setNeedsLayout()
     }
     
+    private func updateLocalizedStrings() {
+        title = LocalizationManager.shared.localized(english: "Help & Tutorial", hindi: "सहायता और ट्यूटोरियल")
+        helpCardLabels.forEach { labels in
+            labels.titleLabel.text = LocalizationManager.shared.localized(labels.titleText)
+            labels.descriptionLabel.text = LocalizationManager.shared.localized(labels.descriptionText)
+        }
+        tutorialButton.setTitle(
+            LocalizationManager.shared.localized(english: "Start Interactive Tutorial", hindi: "इंटरैक्टिव ट्यूटोरियल शुरू करें"),
+            for: .normal
+        )
+    }
+    
+    @objc private func languageDidChange() {
+        updateLocalizedStrings()
+    }
+    
     @objc private func tutorialTapped() {
-        let alert = UIAlertController(title: "Interactive Tutorial", message: "Would you like to start a guided tour of the app?", preferredStyle: .alert)
-        alert.addAction(UIAlertAction(title: "Start Tutorial", style: .default) { _ in
+        let manager = LocalizationManager.shared
+        let alert = UIAlertController(
+            title: manager.localized(english: "Interactive Tutorial", hindi: "इंटरैक्टिव ट्यूटोरियल"),
+            message: manager.localized(english: "Would you like to start a guided tour of the app?", hindi: "क्या आप ऐप का मार्गदर्शित दौरा शुरू करना चाहेंगे?"),
+            preferredStyle: .alert
+        )
+        alert.addAction(UIAlertAction(title: manager.localized(english: "Start Tutorial", hindi: "ट्यूटोरियल शुरू करें"), style: .default) { _ in
             // TODO: Implement tutorial
             print("Tutorial started")
         })
-        alert.addAction(UIAlertAction(title: "Cancel", style: .cancel))
+        alert.addAction(UIAlertAction(title: manager.localized(english: "Cancel", hindi: "रद्द करें"), style: .cancel))
         present(alert, animated: true)
     }
 }

@@ -15,27 +15,68 @@ class VoiceInteractionViewController: UIViewController {
     private let responseLabel = UILabel()
     private let responseScrollView = UIScrollView()
     private let responseContentView = UIView()
-    private var medicationContext: String?
+    private var medicationContext: LocalizedText?
     
     private var isRecording = false
+    private var isShowingPlaceholderResponse = true
     private let isoFormatter: ISO8601DateFormatter = {
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
         return formatter
     }()
     
+    private let defaultStatusText = LocalizedText(
+        english: "How can I help you today? Tap the microphone to ask a question",
+        hindi: "मैं आपकी आज कैसे मदद कर सकता हूँ? प्रश्न पूछने के लिए माइक्रोफ़ोन पर टैप करें"
+    )
+    private let defaultResponseText = LocalizedText(
+        english: "I'm here to help with your medications. Ask me anything!",
+        hindi: "मैं आपकी दवाइयों में मदद करने के लिए यहाँ हूँ। मुझसे कुछ भी पूछें!"
+    )
+    private let listeningStatusText = LocalizedText(
+        english: "Listening... Speak now",
+        hindi: "सुन रहा हूँ... अब बोलें"
+    )
+    private let listeningResponseText = LocalizedText(
+        english: "Listening...",
+        hindi: "सुन रहा हूँ..."
+    )
+    private let processingStatusText = LocalizedText(
+        english: "Processing your question...",
+        hindi: "आपके प्रश्न को संसाधित किया जा रहा है..."
+    )
+    private let askAnotherQuestionText = LocalizedText(
+        english: "Tap the microphone to ask another question",
+        hindi: "एक और प्रश्न पूछने के लिए माइक्रोफ़ोन पर टैप करें"
+    )
+    private let waitForResponseText = LocalizedText(
+        english: "Please wait for the assistant to finish responding.",
+        hindi: "कृपया सहायक के जवाब देने तक प्रतीक्षा करें।"
+    )
+    private let closeButtonText = LocalizedText(english: "Close", hindi: "बंद करें")
+    private let errorPrefixText = LocalizedText(english: "Error", hindi: "त्रुटि")
+    private let recordingNotAuthorizedText = LocalizedText(
+        english: "Speech recognition not authorized. Please enable it in Settings.",
+        hindi: "स्पीच रिकग्निशन अधिकृत नहीं है। कृपया इसे सेटिंग्स में सक्षम करें।"
+    )
+    
     override func viewDidLoad() {
         super.viewDidLoad()
         setupUI()
         setupTheme()
-        
-        title = "AI Assistant"
-        navigationItem.leftBarButtonItem = UIBarButtonItem(title: "Close", style: .plain, target: self, action: #selector(closeTapped))
+        updateLocalizedStrings()
         
         NotificationCenter.default.addObserver(
             self,
             selector: #selector(themeDidChange),
             name: .themeDidChange,
+            object: nil
+        )
+        
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(languageDidChange),
+            name: .languageDidChange,
             object: nil
         )
         VoiceAssistantService.shared.onResponseReceived = { [weak self] response in
@@ -45,7 +86,7 @@ class VoiceInteractionViewController: UIViewController {
         }
         VoiceAssistantService.shared.onError = { [weak self] error in
             DispatchQueue.main.async {
-                self?.showError("Error: \(error.localizedDescription)")
+                self?.showError(error.localizedDescription)
             }
         }
     }
@@ -53,14 +94,28 @@ class VoiceInteractionViewController: UIViewController {
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
         Task { @MainActor [weak self] in
-            self?.statusLabel.textColor = ThemeManager.shared.secondaryTextColor
-            self?.statusLabel.text = "How can I help you today? Tap the microphone to ask a question"
+            guard let self else { return }
+            self.statusLabel.textColor = ThemeManager.shared.secondaryTextColor
+            self.statusLabel.text = self.localized(self.defaultStatusText)
             VoiceAssistantService.shared.playGreetingIfNeeded()
         }
     }
     
-    func setMedicationContext(_ medication: String) {
+    override func viewWillDisappear(_ animated: Bool) {
+        super.viewWillDisappear(animated)
+        VoiceAssistantService.shared.stopSpeaking()
+        if isRecording {
+            VoiceAssistantService.shared.cancelRecording()
+            isRecording = false
+            microphoneButton.backgroundColor = ThemeManager.shared.lightBlue
+        }
+    }
+    
+    func setMedicationContext(_ medication: LocalizedText) {
         medicationContext = medication
+        if isViewLoaded {
+            updateResponsePlaceholder()
+        }
     }
     
     private func setupUI() {
@@ -68,7 +123,7 @@ class VoiceInteractionViewController: UIViewController {
         
         // Status Label
         statusLabel.translatesAutoresizingMaskIntoConstraints = false
-        statusLabel.text = "How can I help you today? Tap the microphone to ask a question"
+        statusLabel.text = localized(defaultStatusText)
         statusLabel.font = UIFont.systemFont(ofSize: 16)
         statusLabel.textColor = ThemeManager.shared.secondaryTextColor
         statusLabel.textAlignment = .center
@@ -91,7 +146,12 @@ class VoiceInteractionViewController: UIViewController {
         responseScrollView.addSubview(responseContentView)
         
         responseLabel.translatesAutoresizingMaskIntoConstraints = false
-        responseLabel.text = medicationContext != nil ? "Ask me about \(medicationContext!)" : "I'm here to help with your medications. Ask me anything!"
+        if medicationContext != nil {
+            updateResponsePlaceholder()
+        } else {
+            responseLabel.text = localized(defaultResponseText)
+            isShowingPlaceholderResponse = true
+        }
         responseLabel.font = UIFont.systemFont(ofSize: 18)
         responseLabel.textColor = ThemeManager.shared.textColor
         responseLabel.numberOfLines = 0
@@ -138,6 +198,65 @@ class VoiceInteractionViewController: UIViewController {
         setupTheme()
     }
     
+    private func localized(_ text: LocalizedText) -> String {
+        LocalizationManager.shared.localized(text)
+    }
+    
+    private func setStatusToDefault() {
+        statusLabel.textColor = ThemeManager.shared.secondaryTextColor
+        statusLabel.text = localized(defaultStatusText)
+    }
+    
+    private func askAboutMedicationString(for context: LocalizedText) -> String {
+        switch LocalizationManager.shared.currentLanguage {
+        case .english:
+            return "Ask me about \(context.english)"
+        case .hindi:
+            return "\(context.hindi) के बारे में मुझसे पूछें"
+        }
+    }
+    
+    private func updateResponsePlaceholder() {
+        if let context = medicationContext {
+            responseLabel.text = askAboutMedicationString(for: context)
+        } else {
+            responseLabel.text = localized(defaultResponseText)
+        }
+        responseLabel.textColor = ThemeManager.shared.textColor
+        isShowingPlaceholderResponse = true
+    }
+    
+    private func updateLocalizedStrings() {
+        let manager = LocalizationManager.shared
+        title = manager.localized(english: "AI Assistant", hindi: "एआई सहायक")
+        if let closeButton = navigationItem.leftBarButtonItem {
+            closeButton.title = localized(closeButtonText)
+            closeButton.target = self
+            closeButton.action = #selector(closeTapped)
+        } else {
+            navigationItem.leftBarButtonItem = UIBarButtonItem(
+                title: localized(closeButtonText),
+                style: .plain,
+                target: self,
+                action: #selector(closeTapped)
+            )
+        }
+        
+        if !isRecording && statusLabel.textColor != .systemRed {
+            setStatusToDefault()
+        } else if isRecording {
+            statusLabel.text = localized(listeningStatusText)
+        }
+        
+        if isShowingPlaceholderResponse {
+            updateResponsePlaceholder()
+        }
+    }
+    
+    @objc private func languageDidChange() {
+        updateLocalizedStrings()
+    }
+    
     @objc private func closeTapped() {
         dismiss(animated: true)
     }
@@ -152,21 +271,24 @@ class VoiceInteractionViewController: UIViewController {
     
     private func startRecording() {
         guard !VoiceAssistantService.shared.isProcessingResponse else {
-            showError("Please wait for the assistant to finish responding.")
+            showError(localized(waitForResponseText), isLocalized: true)
             return
         }
         VoiceAssistantService.shared.requestSpeechAuthorization { [weak self] authorized in
             guard authorized else {
                 DispatchQueue.main.async {
-                    self?.showError("Speech recognition not authorized. Please enable it in Settings.")
+                    guard let self else { return }
+                    self.showError(self.localized(self.recordingNotAuthorizedText), isLocalized: true)
                 }
                 return
             }
             
             DispatchQueue.main.async {
-                self?.isRecording = true
-                self?.microphoneButton.backgroundColor = .systemRed
-                self?.statusLabel.text = "Listening... Speak now"
+                guard let self else { return }
+                self.isRecording = true
+                self.microphoneButton.backgroundColor = .systemRed
+                self.statusLabel.textColor = ThemeManager.shared.secondaryTextColor
+                self.statusLabel.text = self.localized(self.listeningStatusText)
                 Task { @MainActor in
                     VoiceAssistantService.shared.stopSpeaking()
                 }
@@ -174,13 +296,15 @@ class VoiceInteractionViewController: UIViewController {
 
             VoiceAssistantService.shared.startRecording { [weak self] result in
                 DispatchQueue.main.async {
+                    guard let self else { return }
                     switch result {
                     case .success:
-                        self?.responseLabel.text = "Listening..."
+                        self.responseLabel.text = self.localized(self.listeningResponseText)
+                        self.isShowingPlaceholderResponse = false
                     case .failure(let error):
-                        self?.isRecording = false
-                        self?.microphoneButton.backgroundColor = ThemeManager.shared.lightBlue
-                        self?.showError("Error: \(error.localizedDescription)")
+                        self.isRecording = false
+                        self.microphoneButton.backgroundColor = ThemeManager.shared.lightBlue
+                        self.showError(error.localizedDescription)
                     }
                 }
             }
@@ -190,13 +314,15 @@ class VoiceInteractionViewController: UIViewController {
     private func stopRecording() {
         VoiceAssistantService.shared.stopRecording { [weak self] result in
             DispatchQueue.main.async {
-                self?.isRecording = false
-                self?.microphoneButton.backgroundColor = ThemeManager.shared.lightBlue
+                guard let self else { return }
+                self.isRecording = false
+                self.microphoneButton.backgroundColor = ThemeManager.shared.lightBlue
                 switch result {
                 case .success:
-                    self?.statusLabel.text = "Processing your question..."
+                    self.statusLabel.textColor = ThemeManager.shared.secondaryTextColor
+                    self.statusLabel.text = self.localized(self.processingStatusText)
                 case .failure(let error):
-                    self?.showError("Error: \(error.localizedDescription)")
+                    self.showError(error.localizedDescription)
                 }
             }
         }
@@ -204,8 +330,9 @@ class VoiceInteractionViewController: UIViewController {
     
     private func showResponse(_ response: AssistantResponse) {
         responseLabel.text = response.reply
+        isShowingPlaceholderResponse = false
         statusLabel.textColor = ThemeManager.shared.secondaryTextColor
-        statusLabel.text = "Tap the microphone to ask another question"
+        statusLabel.text = localized(askAnotherQuestionText)
         handleActions(response.actions ?? [])
     }
     
@@ -221,29 +348,50 @@ class VoiceInteractionViewController: UIViewController {
                     logDate = Date()
                 }
 
-                let medicationName = action.medicationName?.isEmpty == false ? action.medicationName! : "Medication"
-                let displayText = "Logged \(medicationName)"
-
-                var detailComponents: [String] = []
+                let medicationNameText: LocalizedText
+                if let providedName = action.medicationName?.trimmingCharacters(in: .whitespacesAndNewlines),
+                   !providedName.isEmpty {
+                    medicationNameText = .same(providedName)
+                } else {
+                    medicationNameText = LocalizedText(english: "Medication", hindi: "दवाई")
+                }
+                let displayText = LocalizedText(
+                    english: "Logged \(medicationNameText.english)",
+                    hindi: "\(medicationNameText.hindi) दर्ज किया गया"
+                )
+                
+                var detailComponents: [LocalizedText] = []
                 if let dosage = action.dosage, !dosage.isEmpty {
-                    detailComponents.append(dosage)
+                    detailComponents.append(.same(dosage))
                 }
 
                 let timeFormatter = DateFormatter()
                 timeFormatter.timeStyle = .short
-                detailComponents.append(timeFormatter.string(from: logDate))
+                detailComponents.append(.same(timeFormatter.string(from: logDate)))
 
                 if let caregiversNotified = action.caregiversNotified {
-                    detailComponents.append(caregiversNotified ? "Care circle notified" : "Care circle not notified")
+                    let caregiversText = caregiversNotified
+                    ? LocalizedText(english: "Care circle notified", hindi: "केयर सर्कल को सूचित किया गया")
+                    : LocalizedText(english: "Care circle not notified", hindi: "केयर सर्कल को सूचित नहीं किया गया")
+                    detailComponents.append(caregiversText)
                 }
 
                 if let notes = action.notes, !notes.isEmpty {
-                    detailComponents.append(notes)
+                    detailComponents.append(.same(notes))
                 }
 
+                let detailText: LocalizedText?
+                if detailComponents.isEmpty {
+                    detailText = nil
+                } else {
+                    let english = detailComponents.map { $0.english }.joined(separator: " • ")
+                    let hindi = detailComponents.map { $0.hindi }.joined(separator: " • ")
+                    detailText = LocalizedText(english: english, hindi: hindi)
+                }
+                
                 MedicationLogManager.shared.logMedication(
                     displayText: displayText,
-                    detailText: detailComponents.isEmpty ? nil : detailComponents.joined(separator: " • "),
+                    detailText: detailText,
                     date: logDate
                 )
             default:
@@ -252,12 +400,13 @@ class VoiceInteractionViewController: UIViewController {
         }
     }
     
-    private func showError(_ message: String) {
-        statusLabel.text = message
+    private func showError(_ message: String, isLocalized: Bool = false) {
+        let prefix = localized(errorPrefixText)
+        statusLabel.text = isLocalized ? message : "\(prefix): \(message)"
         statusLabel.textColor = .systemRed
         DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
             self.statusLabel.textColor = ThemeManager.shared.secondaryTextColor
-            self.statusLabel.text = "Tap the microphone to ask a question"
+            self.setStatusToDefault()
         }
     }
 }

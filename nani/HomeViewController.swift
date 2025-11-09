@@ -49,6 +49,11 @@ class HomeViewController: UIViewController {
     private let careCircleTitleText = LocalizedText(english: "Your Care Circle", hindi: "आपका केयर सर्कल")
     private let careCircleMessageText = LocalizedText(english: "Hope you're feeling well today!", hindi: "आशा है आज आप अच्छा महसूस कर रहे हैं!")
     private let emptyActivityText = LocalizedText(english: "No recent activity.", hindi: "हाल में कोई गतिविधि नहीं।")
+    private let nextMedicineNameText = LocalizedText(english: "Lisinopril", hindi: "लिसिनोप्रिल")
+    private let nextMedicineTimeText = LocalizedText(english: "8:00 AM", hindi: "सुबह 8:00 बजे")
+    private let careCircleAlertTitleText = LocalizedText(english: "Care Circle Notified", hindi: "केयर सर्कल को सूचित किया गया")
+    private let careCircleRemindConfirmationText = LocalizedText(english: "Your caregivers know you'll take this dose later.", hindi: "आपके केयरगिवर्स को पता चला कि आप यह दवाई बाद में लेंगे।")
+    private let careCircleTakenConfirmationText = LocalizedText(english: "Your caregivers know you've taken this dose.", hindi: "आपके केयरगिवर्स को पता है कि आपने यह दवाई ले ली है।")
     
     
     override func viewDidLoad() {
@@ -636,17 +641,62 @@ class HomeViewController: UIViewController {
     }
     
     @objc private func remindLaterTapped() {
-        // TODO: Schedule reminder
-        print("Remind later tapped")
+        sendCareCircleUpdate(action: .remindLater)
     }
     
     @objc private func takenTapped() {
-        // TODO: Mark medicine as taken
-        print("Taken tapped")
+        sendCareCircleUpdate(action: .taken)
     }
     
     @objc private func languageDidChange() {
         updateLocalizedStrings()
+    }
+    
+    private enum CareCircleAction {
+        case remindLater
+        case taken
+    }
+    
+    private func sendCareCircleUpdate(action: CareCircleAction) {
+        let haptic = UINotificationFeedbackGenerator()
+        haptic.notificationOccurred(.success)
+        
+        let message: LocalizedText
+        let detail = LocalizedText(
+            english: "Care circle notified about the \(nextMedicineTimeText.english) dose.",
+            hindi: "\(nextMedicineTimeText.hindi) की खुराक के बारे में केयर सर्कल को सूचित किया गया।"
+        )
+        
+        switch action {
+        case .remindLater:
+            message = LocalizedText(
+                english: "Maya will take \(nextMedicineNameText.english) a little later.",
+                hindi: "माया \(nextMedicineNameText.hindi) थोड़ी देर में लेंगी।"
+            )
+            CareCircleMessenger.shared.broadcastToCareCircle(message: message, detail: detail)
+            presentCareCircleConfirmation(message: careCircleRemindConfirmationText)
+        case .taken:
+            message = LocalizedText(
+                english: "Maya just took \(nextMedicineNameText.english).",
+                hindi: "माया ने अभी \(nextMedicineNameText.hindi) ले ली है।"
+            )
+            CareCircleMessenger.shared.broadcastToCareCircle(message: message, detail: detail)
+            presentCareCircleConfirmation(message: careCircleTakenConfirmationText)
+        }
+    }
+    
+    private func presentCareCircleConfirmation(message: LocalizedText) {
+        let manager = LocalizationManager.shared
+        if let presented = presentedViewController {
+            presented.dismiss(animated: false)
+        }
+        let alert = UIAlertController(
+            title: manager.localized(careCircleAlertTitleText),
+            message: manager.localized(message),
+            preferredStyle: .alert
+        )
+        alert.addAction(UIAlertAction(title: manager.localized(english: "OK", hindi: "ठीक है"), style: .default))
+        present(alert, animated: true)
     }
     
     @objc private func careCircleTapped() {

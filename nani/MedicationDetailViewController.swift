@@ -12,6 +12,9 @@ class MedicationDetailViewController: UIViewController {
     private let medication: Medication
     private let scrollView = UIScrollView()
     private let contentView = UIView()
+    private let nameLabel = UILabel()
+    private let askAIButton = UIButton(type: .custom)
+    private var infoCardLabels: [(titleLabel: UILabel, valueLabel: UILabel, titleText: LocalizedText, valueText: LocalizedText)] = []
     
     init(medication: Medication) {
         self.medication = medication
@@ -26,6 +29,7 @@ class MedicationDetailViewController: UIViewController {
         super.viewDidLoad()
         setupUI()
         setupTheme()
+        updateLocalizedStrings()
         
         NotificationCenter.default.addObserver(
             self,
@@ -33,11 +37,19 @@ class MedicationDetailViewController: UIViewController {
             name: .themeDidChange,
             object: nil
         )
+        
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(languageDidChange),
+            name: .languageDidChange,
+            object: nil
+        )
     }
     
     private func setupUI() {
         view.backgroundColor = ThemeManager.shared.backgroundColor
-        title = medication.name
+        title = medication.localizedName
+        infoCardLabels.removeAll()
         
         scrollView.translatesAutoresizingMaskIntoConstraints = false
         contentView.translatesAutoresizingMaskIntoConstraints = false
@@ -52,31 +64,41 @@ class MedicationDetailViewController: UIViewController {
         contentView.addSubview(colorView)
         
         // Name
-        let nameLabel = UILabel()
         nameLabel.translatesAutoresizingMaskIntoConstraints = false
-        nameLabel.text = medication.name
+        nameLabel.text = medication.localizedName
         nameLabel.font = UIFont.boldSystemFont(ofSize: 32)
         nameLabel.textColor = ThemeManager.shared.textColor
         contentView.addSubview(nameLabel)
         
         // Dosage
-        let dosageCard = createInfoCard(title: "Dosage", value: medication.dosage, icon: "pills.fill")
+        let dosageCard = createInfoCard(
+            title: LocalizedText(english: "Dosage", hindi: "खुराक"),
+            value: medication.dosage,
+            icon: "pills.fill"
+        )
         contentView.addSubview(dosageCard)
         
         // Schedule
-        let scheduleCard = createInfoCard(title: "Schedule", value: medication.time, icon: "clock.fill")
+        let scheduleCard = createInfoCard(
+            title: LocalizedText(english: "Schedule", hindi: "समय-सारणी"),
+            value: medication.time,
+            icon: "clock.fill"
+        )
         contentView.addSubview(scheduleCard)
         
         // Frequency
-        let frequencyCard = createInfoCard(title: "Frequency", value: medication.frequency, icon: "arrow.clockwise")
+        let frequencyCard = createInfoCard(
+            title: LocalizedText(english: "Frequency", hindi: "आवृत्ति"),
+            value: medication.frequency,
+            icon: "arrow.clockwise"
+        )
         contentView.addSubview(frequencyCard)
         
         // Ask AI button
-        let askAIButton = UIButton(type: .custom)
         askAIButton.translatesAutoresizingMaskIntoConstraints = false
         askAIButton.backgroundColor = ThemeManager.shared.lightBlue
         askAIButton.layer.cornerRadius = 16
-        askAIButton.setTitle("Ask AI about this medication", for: .normal)
+        askAIButton.setTitle(LocalizationManager.shared.localized(english: "Ask AI about this medication", hindi: "इस दवाई के बारे में एआई से पूछें"), for: .normal)
         askAIButton.setTitleColor(ThemeManager.shared.primaryBlue, for: .normal)
         askAIButton.titleLabel?.font = UIFont.boldSystemFont(ofSize: 16)
         askAIButton.setImage(UIImage(systemName: "mic.fill"), for: .normal)
@@ -125,7 +147,7 @@ class MedicationDetailViewController: UIViewController {
         ])
     }
     
-    private func createInfoCard(title: String, value: String, icon: String) -> UIView {
+    private func createInfoCard(title: LocalizedText, value: LocalizedText, icon: String) -> UIView {
         let card = UIView()
         card.translatesAutoresizingMaskIntoConstraints = false
         card.backgroundColor = ThemeManager.shared.secondaryBackgroundColor
@@ -138,17 +160,19 @@ class MedicationDetailViewController: UIViewController {
         
         let titleLabel = UILabel()
         titleLabel.translatesAutoresizingMaskIntoConstraints = false
-        titleLabel.text = title
+        titleLabel.text = LocalizationManager.shared.localized(title)
         titleLabel.font = UIFont.systemFont(ofSize: 14)
         titleLabel.textColor = ThemeManager.shared.secondaryTextColor
         card.addSubview(titleLabel)
         
         let valueLabel = UILabel()
         valueLabel.translatesAutoresizingMaskIntoConstraints = false
-        valueLabel.text = value
+        valueLabel.text = LocalizationManager.shared.localized(value)
         valueLabel.font = UIFont.boldSystemFont(ofSize: 18)
         valueLabel.textColor = ThemeManager.shared.textColor
         card.addSubview(valueLabel)
+        
+        infoCardLabels.append((titleLabel, valueLabel, title, value))
         
         NSLayoutConstraint.activate([
             card.heightAnchor.constraint(equalToConstant: 80),
@@ -173,11 +197,36 @@ class MedicationDetailViewController: UIViewController {
     
     private func setupTheme() {
         view.backgroundColor = ThemeManager.shared.backgroundColor
+        nameLabel.textColor = ThemeManager.shared.textColor
+        askAIButton.backgroundColor = ThemeManager.shared.lightBlue
+        askAIButton.setTitleColor(ThemeManager.shared.primaryBlue, for: .normal)
+        askAIButton.tintColor = ThemeManager.shared.primaryBlue
+        infoCardLabels.forEach { labels in
+            labels.titleLabel.textColor = ThemeManager.shared.secondaryTextColor
+            labels.valueLabel.textColor = ThemeManager.shared.textColor
+        }
     }
     
     @objc private func themeDidChange() {
         setupTheme()
         view.setNeedsLayout()
+    }
+    
+    private func updateLocalizedStrings() {
+        title = medication.localizedName
+        nameLabel.text = medication.localizedName
+        infoCardLabels.forEach { labels in
+            labels.titleLabel.text = LocalizationManager.shared.localized(labels.titleText)
+            labels.valueLabel.text = LocalizationManager.shared.localized(labels.valueText)
+        }
+        askAIButton.setTitle(
+            LocalizationManager.shared.localized(english: "Ask AI about this medication", hindi: "इस दवाई के बारे में एआई से पूछें"),
+            for: .normal
+        )
+    }
+    
+    @objc private func languageDidChange() {
+        updateLocalizedStrings()
     }
     
     @objc private func askAITapped() {

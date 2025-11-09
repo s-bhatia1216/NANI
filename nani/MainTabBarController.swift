@@ -14,11 +14,19 @@ class MainTabBarController: UITabBarController {
         setupViewControllers()
         setupTabBar()
         setupTheme()
+        updateTabTitles()
         
         NotificationCenter.default.addObserver(
             self,
             selector: #selector(themeDidChange),
             name: .themeDidChange,
+            object: nil
+        )
+        
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(languageDidChange),
+            name: .languageDidChange,
             object: nil
         )
     }
@@ -60,8 +68,26 @@ class MainTabBarController: UITabBarController {
         tabBar.unselectedItemTintColor = ThemeManager.shared.secondaryTextColor
     }
     
+    private func updateTabTitles() {
+        guard let controllers = viewControllers else { return }
+        let manager = LocalizationManager.shared
+        if controllers.indices.contains(0) {
+            controllers[0].tabBarItem.title = manager.localized(english: "Home", hindi: "होम")
+        }
+        if controllers.indices.contains(1) {
+            controllers[1].tabBarItem.title = manager.localized(english: "AI Assistant", hindi: "एआई सहायक")
+        }
+        if controllers.indices.contains(2) {
+            controllers[2].tabBarItem.title = manager.localized(english: "My Medications", hindi: "मेरी दवाइयाँ")
+        }
+    }
+    
     @objc private func themeDidChange() {
         setupTheme()
+    }
+    
+    @objc private func languageDidChange() {
+        updateTabTitles()
     }
 }
 

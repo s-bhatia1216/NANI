@@ -11,19 +11,30 @@ class ProfileViewController: UIViewController {
     
     private let scrollView = UIScrollView()
     private let contentView = UIView()
+    private let nameLabel = UILabel()
+    private let editButton = UIButton(type: .system)
+    private var infoCardLabels: [(titleLabel: UILabel, valueLabel: UILabel, titleText: LocalizedText, valueText: LocalizedText)] = []
     
     override func viewDidLoad() {
         super.viewDidLoad()
         setupUI()
         setupTheme()
+        updateLocalizedStrings()
         
-        title = "Profile"
+        title = LocalizationManager.shared.localized(english: "Profile", hindi: "प्रोफ़ाइल")
         navigationController?.navigationBar.prefersLargeTitles = true
         
         NotificationCenter.default.addObserver(
             self,
             selector: #selector(themeDidChange),
             name: .themeDidChange,
+            object: nil
+        )
+        
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(languageDidChange),
+            name: .languageDidChange,
             object: nil
         )
     }
@@ -35,6 +46,7 @@ class ProfileViewController: UIViewController {
         contentView.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(scrollView)
         scrollView.addSubview(contentView)
+        infoCardLabels.removeAll()
         
         // Profile Image
         let profileImageView = UIImageView()
@@ -51,31 +63,41 @@ class ProfileViewController: UIViewController {
         contentView.addSubview(profileImageView)
         
         // Name
-        let nameLabel = UILabel()
         nameLabel.translatesAutoresizingMaskIntoConstraints = false
-        nameLabel.text = "Maya Sharma"
+        nameLabel.text = LocalizationManager.shared.localized(english: "Maya Sharma", hindi: "माया शर्मा")
         nameLabel.font = UIFont.boldSystemFont(ofSize: 28)
         nameLabel.textColor = ThemeManager.shared.textColor
         nameLabel.textAlignment = .center
         contentView.addSubview(nameLabel)
         
         // Edit Button
-        let editButton = UIButton(type: .system)
         editButton.translatesAutoresizingMaskIntoConstraints = false
-        editButton.setTitle("Edit Profile", for: .normal)
+        editButton.setTitle(LocalizationManager.shared.localized(english: "Edit Profile", hindi: "प्रोफ़ाइल संपादित करें"), for: .normal)
         editButton.setTitleColor(ThemeManager.shared.primaryBlue, for: .normal)
         editButton.titleLabel?.font = UIFont.systemFont(ofSize: 16)
         editButton.addTarget(self, action: #selector(editTapped), for: .touchUpInside)
         contentView.addSubview(editButton)
         
         // Info Cards
-        let ageCard = createInfoCard(title: "Age", value: "75 years", icon: "calendar")
+        let ageCard = createInfoCard(
+            title: LocalizedText(english: "Age", hindi: "आयु"),
+            value: LocalizedText(english: "75 years", hindi: "75 वर्ष"),
+            icon: "calendar"
+        )
         contentView.addSubview(ageCard)
         
-        let languageCard = createInfoCard(title: "Preferred Language", value: "English", icon: "globe")
+        let languageCard = createInfoCard(
+            title: LocalizedText(english: "Preferred Language", hindi: "पसंदीदा भाषा"),
+            value: LocalizedText(english: "English", hindi: "अंग्रेज़ी"),
+            icon: "globe"
+        )
         contentView.addSubview(languageCard)
         
-        let medicationsCard = createInfoCard(title: "Active Medications", value: "4", icon: "pills.fill")
+        let medicationsCard = createInfoCard(
+            title: LocalizedText(english: "Active Medications", hindi: "सक्रिय दवाइयाँ"),
+            value: LocalizedText.same("4"),
+            icon: "pills.fill"
+        )
         contentView.addSubview(medicationsCard)
         
         NSLayoutConstraint.activate([
@@ -118,7 +140,7 @@ class ProfileViewController: UIViewController {
         ])
     }
     
-    private func createInfoCard(title: String, value: String, icon: String) -> UIView {
+    private func createInfoCard(title: LocalizedText, value: LocalizedText, icon: String) -> UIView {
         let card = UIView()
         card.translatesAutoresizingMaskIntoConstraints = false
         card.backgroundColor = ThemeManager.shared.secondaryBackgroundColor
@@ -131,17 +153,19 @@ class ProfileViewController: UIViewController {
         
         let titleLabel = UILabel()
         titleLabel.translatesAutoresizingMaskIntoConstraints = false
-        titleLabel.text = title
+        titleLabel.text = LocalizationManager.shared.localized(title)
         titleLabel.font = UIFont.systemFont(ofSize: 14)
         titleLabel.textColor = ThemeManager.shared.secondaryTextColor
         card.addSubview(titleLabel)
         
         let valueLabel = UILabel()
         valueLabel.translatesAutoresizingMaskIntoConstraints = false
-        valueLabel.text = value
+        valueLabel.text = LocalizationManager.shared.localized(value)
         valueLabel.font = UIFont.boldSystemFont(ofSize: 18)
         valueLabel.textColor = ThemeManager.shared.textColor
         card.addSubview(valueLabel)
+        
+        infoCardLabels.append((titleLabel, valueLabel, title, value))
         
         NSLayoutConstraint.activate([
             card.heightAnchor.constraint(equalToConstant: 80),
@@ -178,6 +202,12 @@ class ProfileViewController: UIViewController {
     
     private func setupTheme() {
         view.backgroundColor = ThemeManager.shared.backgroundColor
+        nameLabel.textColor = ThemeManager.shared.textColor
+        editButton.setTitleColor(ThemeManager.shared.primaryBlue, for: .normal)
+        infoCardLabels.forEach { labels in
+            labels.titleLabel.textColor = ThemeManager.shared.secondaryTextColor
+            labels.valueLabel.textColor = ThemeManager.shared.textColor
+        }
     }
     
     @objc private func themeDidChange() {
@@ -185,13 +215,32 @@ class ProfileViewController: UIViewController {
         view.setNeedsLayout()
     }
     
+    private func updateLocalizedStrings() {
+        title = LocalizationManager.shared.localized(english: "Profile", hindi: "प्रोफ़ाइल")
+        nameLabel.text = LocalizationManager.shared.localized(english: "Maya Sharma", hindi: "माया शर्मा")
+        editButton.setTitle(LocalizationManager.shared.localized(english: "Edit Profile", hindi: "प्रोफ़ाइल संपादित करें"), for: .normal)
+        infoCardLabels.forEach { labels in
+            labels.titleLabel.text = LocalizationManager.shared.localized(labels.titleText)
+            labels.valueLabel.text = LocalizationManager.shared.localized(labels.valueText)
+        }
+    }
+    
+    @objc private func languageDidChange() {
+        updateLocalizedStrings()
+    }
+    
     @objc private func editTapped() {
-        let alert = UIAlertController(title: "Edit Profile", message: "Use voice command to update your profile", preferredStyle: .alert)
-        alert.addAction(UIAlertAction(title: "Use Voice", style: .default) { _ in
+        let manager = LocalizationManager.shared
+        let alert = UIAlertController(
+            title: manager.localized(english: "Edit Profile", hindi: "प्रोफ़ाइल संपादित करें"),
+            message: manager.localized(english: "Use voice command to update your profile", hindi: "अपनी प्रोफ़ाइल को अपडेट करने के लिए वॉइस कमांड का उपयोग करें"),
+            preferredStyle: .alert
+        )
+        alert.addAction(UIAlertAction(title: manager.localized(english: "Use Voice", hindi: "वॉइस का उपयोग करें"), style: .default) { _ in
             let voiceVC = VoiceInteractionViewController()
             self.present(UINavigationController(rootViewController: voiceVC), animated: true)
         })
-        alert.addAction(UIAlertAction(title: "Cancel", style: .cancel))
+        alert.addAction(UIAlertAction(title: manager.localized(english: "Cancel", hindi: "रद्द करें"), style: .cancel))
         present(alert, animated: true)
     }
 }
