@@ -1,5 +1,7 @@
 # NANI: A Compassionate Medicine Companion
 
+![NANI Logo](nani_logo.png)
+
 > *"Nani" means grandmother in Hindi—a symbol of warmth, care, and gentle guidance. NANI is an AI-powered medication adherence system designed to help elderly patients like Maya Sharma stay healthy, independent, and connected to their care circle.*
 
 ---
