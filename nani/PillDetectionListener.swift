@@ -38,7 +38,7 @@ final class PillDetectionListener: NSObject, URLSessionDataDelegate {
         guard let decoded = try? JSONDecoder().decode(PillEvent.self, from: payload) else { return }
         let medicationName = decoded.entry?["Medication"] ?? decoded.entry?["medicine"] ?? "Medicine"
         let message = LocalizedText(
-            english: "\(medicationName) pill was taken (sheet detected).",
+            english: "\(medicationName) pill was taken.",
             hindi: "\(medicationName) गोली ली गई (शीट डिटेक्शन)।"
         )
         let detectedTime = formattedTime(from: decoded.timestamp) ?? formattedSheetTimestamp(decoded.entry?["Timestamp"])
