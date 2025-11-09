@@ -12,15 +12,31 @@ class CareCircleViewController: UIViewController {
     private let tableView = UITableView(frame: .zero, style: .insetGrouped)
     
     private var members: [CareMember] = [
-        CareMember(name: "Yash Thakkar", role: "Family Member", relationship: "Son", isOnline: true),
-        CareMember(name: "Sonal Bhatia", role: "Family Member", relationship: "Daughter", isOnline: true),
-        CareMember(name: "Dr. Smith", role: "Primary Care Physician", relationship: "Doctor", isOnline: false)
+        CareMember(
+            name: "Yash Thakkar",
+            role: LocalizedText(english: "Family Member", hindi: "परिवार का सदस्य"),
+            relationship: LocalizedText(english: "Son", hindi: "बेटा"),
+            isOnline: true
+        ),
+        CareMember(
+            name: "Sonal Bhatia",
+            role: LocalizedText(english: "Family Member", hindi: "परिवार का सदस्य"),
+            relationship: LocalizedText(english: "Daughter", hindi: "बेटी"),
+            isOnline: true
+        ),
+        CareMember(
+            name: "Dr. Smith",
+            role: LocalizedText(english: "Primary Care Physician", hindi: "मुख्य देखभाल चिकित्सक"),
+            relationship: LocalizedText(english: "Doctor", hindi: "डॉक्टर"),
+            isOnline: false
+        )
     ]
     
     override func viewDidLoad() {
         super.viewDidLoad()
         setupUI()
         setupTheme()
+        updateLocalizedStrings()
         
         NotificationCenter.default.addObserver(
             self,
@@ -28,14 +44,22 @@ class CareCircleViewController: UIViewController {
             name: .themeDidChange,
             object: nil
         )
+        
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(languageDidChange),
+            name: .languageDidChange,
+            object: nil
+        )
     }
     
     private func setupUI() {
         view.backgroundColor = ThemeManager.shared.backgroundColor
-        title = "Care Circle"
+        title = LocalizationManager.shared.localized(english: "Care Circle", hindi: "केयर सर्कल")
         navigationController?.navigationBar.prefersLargeTitles = true
         
         let addButton = UIBarButtonItem(barButtonSystemItem: .add, target: self, action: #selector(addMemberTapped))
+        addButton.accessibilityLabel = LocalizationManager.shared.localized(english: "Add care circle member", hindi: "केयर सर्कल सदस्य जोड़ें")
         navigationItem.rightBarButtonItem = addButton
         
         tableView.translatesAutoresizingMaskIntoConstraints = false
@@ -58,20 +82,36 @@ class CareCircleViewController: UIViewController {
         tableView.reloadData()
     }
     
+    private func updateLocalizedStrings() {
+        let manager = LocalizationManager.shared
+        title = manager.localized(english: "Care Circle", hindi: "केयर सर्कल")
+        navigationItem.rightBarButtonItem?.accessibilityLabel = manager.localized(english: "Add care circle member", hindi: "केयर सर्कल सदस्य जोड़ें")
+        tableView.reloadData()
+    }
+    
     @objc private func themeDidChange() {
         setupTheme()
     }
     
     @objc private func addMemberTapped() {
-        let alert = UIAlertController(title: "Add to Care Circle", message: "Invite a family member or healthcare provider", preferredStyle: .alert)
+        let manager = LocalizationManager.shared
+        let alert = UIAlertController(
+            title: manager.localized(english: "Add to Care Circle", hindi: "केयर सर्कल में जोड़ें"),
+            message: manager.localized(english: "Invite a family member or healthcare provider", hindi: "किसी परिवार के सदस्य या स्वास्थ्य सेवा प्रदाता को आमंत्रित करें"),
+            preferredStyle: .alert
+        )
         alert.addTextField { textField in
-            textField.placeholder = "Email or phone number"
+            textField.placeholder = manager.localized(english: "Email or phone number", hindi: "ईमेल या फोन नंबर")
         }
-        alert.addAction(UIAlertAction(title: "Send Invite", style: .default) { _ in
+        alert.addAction(UIAlertAction(title: manager.localized(english: "Send Invite", hindi: "आमंत्रण भेजें"), style: .default) { _ in
             // TODO: Send invite
         })
-        alert.addAction(UIAlertAction(title: "Cancel", style: .cancel))
+        alert.addAction(UIAlertAction(title: manager.localized(english: "Cancel", hindi: "रद्द करें"), style: .cancel))
         present(alert, animated: true)
+    }
+    
+    @objc private func languageDidChange() {
+        updateLocalizedStrings()
     }
 }
 
@@ -173,7 +213,7 @@ class CareMemberTableViewCell: UITableViewCell {
     
     func configure(with member: CareMember) {
         nameLabel.text = member.name
-        roleLabel.text = "\(member.role) • \(member.relationship)"
+        roleLabel.text = member.localizedRoleDescription
         statusIndicator.backgroundColor = member.isOnline ? .systemGreen : .systemGray
         
         // Load appropriate image based on member name

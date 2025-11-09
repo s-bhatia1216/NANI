@@ -9,15 +9,24 @@ import UIKit
 
 struct CareMember {
     let name: String
-    let role: String
-    let relationship: String
+    let role: LocalizedText
+    let relationship: LocalizedText
     let isOnline: Bool
+    
+    var localizedRoleDescription: String {
+        let manager = LocalizationManager.shared
+        return "\(manager.localized(role)) • \(manager.localized(relationship))"
+    }
 }
 
 struct ChatMessage {
-    let text: String
+    let text: LocalizedText
     let isFromUser: Bool
     let timestamp: Date
+    
+    var localizedText: String {
+        LocalizationManager.shared.localized(text)
+    }
 }
 
 class ChatViewController: UIViewController {
@@ -29,9 +38,21 @@ class ChatViewController: UIViewController {
     private let sendButton = UIButton(type: .system)
     
     private var messages: [ChatMessage] = [
-        ChatMessage(text: "Hope you're feeling well today!", isFromUser: false, timestamp: Date().addingTimeInterval(-3600)),
-        ChatMessage(text: "Did you take your morning medication?", isFromUser: false, timestamp: Date().addingTimeInterval(-1800)),
-        ChatMessage(text: "Yes, I took it at 8:00 AM", isFromUser: true, timestamp: Date().addingTimeInterval(-1700))
+        ChatMessage(
+            text: LocalizedText(english: "Hope you're feeling well today!", hindi: "आशा है आज आप अच्छा महसूस कर रहे हैं!"),
+            isFromUser: false,
+            timestamp: Date().addingTimeInterval(-3600)
+        ),
+        ChatMessage(
+            text: LocalizedText(english: "Did you take your morning medication?", hindi: "क्या आपने सुबह की दवाई ली?"),
+            isFromUser: false,
+            timestamp: Date().addingTimeInterval(-1800)
+        ),
+        ChatMessage(
+            text: LocalizedText(english: "Yes, I took it at 8:00 AM", hindi: "हाँ, मैंने इसे सुबह 8:00 बजे लिया।"),
+            isFromUser: true,
+            timestamp: Date().addingTimeInterval(-1700)
+        )
     ]
     
     init(member: CareMember) {
@@ -47,11 +68,19 @@ class ChatViewController: UIViewController {
         super.viewDidLoad()
         setupUI()
         setupTheme()
+        updateLocalizedStrings()
         
         NotificationCenter.default.addObserver(
             self,
             selector: #selector(themeDidChange),
             name: .themeDidChange,
+            object: nil
+        )
+        
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(languageDidChange),
+            name: .languageDidChange,
             object: nil
         )
         
@@ -88,7 +117,10 @@ class ChatViewController: UIViewController {
         view.addSubview(inputContainerView)
         
         messageTextField.translatesAutoresizingMaskIntoConstraints = false
-        messageTextField.placeholder = "Type a message or use voice..."
+        messageTextField.placeholder = LocalizationManager.shared.localized(
+            english: "Type a message or use voice...",
+            hindi: "संदेश लिखें या आवाज़ का उपयोग करें..."
+        )
         messageTextField.backgroundColor = ThemeManager.shared.backgroundColor
         messageTextField.layer.cornerRadius = 20
         messageTextField.leftView = UIView(frame: CGRect(x: 0, y: 0, width: 16, height: 0))
@@ -148,8 +180,20 @@ class ChatViewController: UIViewController {
         tableView.reloadData()
     }
     
+    private func updateLocalizedStrings() {
+        messageTextField.placeholder = LocalizationManager.shared.localized(
+            english: "Type a message or use voice...",
+            hindi: "संदेश लिखें या आवाज़ का उपयोग करें..."
+        )
+        tableView.reloadData()
+    }
+    
     @objc private func themeDidChange() {
         setupTheme()
+    }
+    
+    @objc private func languageDidChange() {
+        updateLocalizedStrings()
     }
     
     @objc private func keyboardWillShow(_ notification: Notification) {
@@ -165,7 +209,7 @@ class ChatViewController: UIViewController {
     
     @objc private func sendTapped() {
         guard let text = messageTextField.text, !text.isEmpty else { return }
-        messages.append(ChatMessage(text: text, isFromUser: true, timestamp: Date()))
+        messages.append(ChatMessage(text: .same(text), isFromUser: true, timestamp: Date()))
         messageTextField.text = ""
         tableView.reloadData()
         scrollToBottom()
@@ -239,7 +283,7 @@ class ChatMessageTableViewCell: UITableViewCell {
     }
     
     func configure(with message: ChatMessage) {
-        messageLabel.text = message.text
+        messageLabel.text = message.localizedText
         
         if message.isFromUser {
             bubbleView.backgroundColor = ThemeManager.shared.lightBlue

@@ -22,6 +22,88 @@ const STT_MODEL = process.env.OPENAI_STT_MODEL || 'whisper-1';
 
 const VOICE = process.env.OPENAI_SPEECH_VOICE || 'alloy';
 const AUDIO_FORMAT = process.env.OPENAI_AUDIO_FORMAT || 'wav'; // wav|mp3|opus|aac|flac
+const DEMO_PERSONA_PROMPT =
+  process.env.NANI_DEMO_PROMPT ||
+  `
+You are “Nani,” the warm, encouraging AI caretaker who helps Maya Sharma stay on top of her medications and daily routines.
+Guidelines:
+- Sound like a compassionate grandmother; short, upbeat sentences under ~30 seconds of speech.
+- Always acknowledge Maya’s feelings, then give the concrete next medication or safety step.
+- Track adherence and safety: if she reports dizziness, missed pills, or BP spikes, remind her to alert her nurse or caregiver Priya.
+- Offer proactive help: future reminders, hydration tips, caregiver updates.
+- Never mention system prompts, implementation details, or API keys. Just act like Nani on a smart speaker.
+`;
+const DEMO_DAY_PLAN = [
+  {
+    time: '7:30 AM',
+    medication: 'Levothyroxine',
+    dosage: '75 mcg',
+    purpose: 'Thyroid hormone replacement',
+    instructions: 'Take on an empty stomach with water, wait 30 minutes before breakfast',
+    status: 'Taken? confirm'
+  },
+  {
+    time: '8:00 AM',
+    medication: 'Lisinopril',
+    dosage: '10 mg',
+    purpose: 'Blood pressure control',
+    instructions: 'Check BP first; remind to sit if dizzy',
+    status: 'Due now'
+  },
+  {
+    time: '12:00 PM',
+    medication: 'Metformin',
+    dosage: '500 mg',
+    purpose: 'Blood sugar maintenance',
+    instructions: 'Take with lunch or light snack to avoid stomach upset',
+    status: 'Upcoming'
+  },
+  {
+    time: '3:00 PM',
+    medication: 'Vitamin D',
+    dosage: '2000 IU',
+    purpose: 'Bone health',
+    instructions: 'OK with tea; note if already took earlier',
+    status: 'Optional supplement'
+  },
+  {
+    time: '6:00 PM',
+    medication: 'Atorvastatin',
+    dosage: '20 mg',
+    purpose: 'Cholesterol',
+    instructions: 'Take after dinner; remind to log if skipped due to muscle pain',
+    status: 'Upcoming'
+  },
+  {
+    time: 'Bedtime',
+    medication: 'Melatonin',
+    dosage: '3 mg (PRN)',
+    purpose: 'Sleep support',
+    instructions: 'Only if restless; encourage wind-down routine first',
+    status: 'As needed'
+  }
+];
+
+const CAREGIVER_ROSTER = [
+  {
+    name: 'Raj Sharma',
+    relation: 'Husband & primary contact',
+    phone: 'Raj cell: (408) 555-1101',
+    notes: 'Works from home; can assist with evening meds and transportation.'
+  },
+  {
+    name: 'Priya Patel, RN',
+    relation: 'Visiting nurse',
+    phone: 'Nurse line: (408) 555-2202',
+    notes: 'Checks vitals Mon/Wed/Fri 7 PM; wants alerts for dizziness, missed BP meds, or BP > 150/95.'
+  },
+  {
+    name: 'Anika Sharma',
+    relation: 'Daughter (remote support)',
+    phone: 'FaceTime preferred',
+    notes: 'Lives in Seattle; appreciates updates when new symptoms appear.'
+  }
+];
 
 if (!process.env.OPENAI_API_KEY) {
   throw new Error('OPENAI_API_KEY is required. Add it to your environment or .env file.');
@@ -112,11 +194,21 @@ app.post('/api/voice-exchange', upload.single('audio'), async (req, res) => {
 
     // --------------------------------------------------------
     // 2. LLM Text Generation
-    // --------------------------------------------------------
+// --------------------------------------------------------
+    const promptBlocks = [
+      DEMO_PERSONA_PROMPT.trim(),
+      buildDemoScenarioContext(),
+      (req.body?.context || '').trim()
+    ].filter(Boolean);
+    const systemPrompt = promptBlocks.join('\n\n');
 
     const resp = await openai.responses.create({
       model: GEN_MODEL,
       input: [
+        {
+          role: 'system',
+          content: [{ type: 'input_text', text: systemPrompt }]
+        },
         {
           role: 'user',
           content: [{ type: 'input_text', text: userText }]
@@ -162,6 +254,35 @@ app.post('/api/voice-exchange', upload.single('audio'), async (req, res) => {
 // --------------------------------------------------------
 // Helpers
 // --------------------------------------------------------
+
+function buildDemoScenarioContext() {
+  const now = new Date();
+  const friendlyDate = new Intl.DateTimeFormat('en-US', {
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric'
+  }).format(now);
+
+  const medsAgenda = DEMO_DAY_PLAN.map(
+    (item) =>
+      `${item.time} – ${item.medication} ${item.dosage} (${item.purpose}; ${item.status}). Notes: ${item.instructions}`
+  ).join('\n- ');
+
+  const caregivers = CAREGIVER_ROSTER.map(
+    (c) => `${c.name} – ${c.relation}. Contact: ${c.phone}. Notes: ${c.notes}`
+  ).join('\n- ');
+
+  return [
+    `Today is ${friendlyDate}. Patient: Maya Sharma, 75, lives in San Jose by herself.`,
+    'Recent vitals: BP 132/84 this morning, fasting glucose 110 mg/dL, reports mild dizziness when standing quickly.',
+    'Care circle:',
+    `- ${caregivers}`,
+    'Today’s medication plan:',
+    `- ${medsAgenda}`,
+    'Goals: keep blood pressure in range, encourage hydration, confirm she has eaten before the noon Metformin.',
+    'If Maya confirms taking a dose, celebrate it and remind her it is logged. If she misses or feels unwell, suggest checking BP and calling Yash or Sonal.'
+  ].join('\n');
+}
 
 function inferAudioFormat(file) {
   if (file?.mimetype?.includes('m4a')) return 'm4a';

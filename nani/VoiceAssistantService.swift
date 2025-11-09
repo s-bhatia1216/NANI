@@ -33,17 +33,17 @@ enum VoiceAssistantError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .invalidEndpoint:
-            return "The voice backend endpoint is invalid."
+            return LocalizationManager.shared.localized(english: "The voice backend endpoint is invalid.", hindi: "वॉइस बैकएंड एंडपॉइंट अमान्य है।")
         case .backendUnavailable:
-            return "The voice assistant service is currently unavailable."
+            return LocalizationManager.shared.localized(english: "The voice assistant service is currently unavailable.", hindi: "वॉइस सहायक सेवा वर्तमान में उपलब्ध नहीं है।")
         case .recordingNotStarted:
-            return "Recording has not started."
+            return LocalizationManager.shared.localized(english: "Recording has not started.", hindi: "रिकॉर्डिंग शुरू नहीं हुई है।")
         case .audioEncodingFailed:
-            return "Unable to prepare microphone audio for the assistant."
+            return LocalizationManager.shared.localized(english: "Unable to prepare microphone audio for the assistant.", hindi: "सहायक के लिए माइक्रोफोन ऑडियो तैयार नहीं किया जा सका।")
         case .decodingFailed:
-            return "Could not decode the assistant's response."
+            return LocalizationManager.shared.localized(english: "Could not decode the assistant's response.", hindi: "सहायक के जवाब को डिकोड नहीं किया जा सका।")
         case .busyProcessing:
-            return "Please wait while I finish the previous request."
+            return LocalizationManager.shared.localized(english: "Please wait while I finish the previous request.", hindi: "कृपया तब तक प्रतीक्षा करें जब तक मैं पिछली अनुरोध को पूरा कर लूँ।")
         }
     }
 }
@@ -57,6 +57,7 @@ final class VoiceAssistantService: NSObject {
     private let audioSession = AVAudioSession.sharedInstance()
     private var audioRecorder: AVAudioRecorder?
     private var audioPlayer: AVAudioPlayer?
+    private var greetingAudioPlayer: AVAudioPlayer?
     private let recordingURL = FileManager.default.temporaryDirectory.appendingPathComponent("nani-voice-query.wav")
     private let urlSession = URLSession(configuration: .default)
     private let speechSynthesizer = AVSpeechSynthesizer()
@@ -196,7 +197,8 @@ final class VoiceAssistantService: NSObject {
     @MainActor
     private func deliverSuccess(_ backendResponse: VoiceBackendResponse) {
         let trimmed = backendResponse.text?.trimmingCharacters(in: .whitespacesAndNewlines)
-        let reply = trimmed?.isEmpty == false ? trimmed! : "I'm here."
+        let fallback = LocalizationManager.shared.localized(english: "I'm here.", hindi: "मैं यहाँ हूँ।")
+        let reply = trimmed?.isEmpty == false ? trimmed! : fallback
         let assistantResponse = AssistantResponse(reply: reply, actions: [])
         onResponseReceived?(assistantResponse)
 
@@ -251,7 +253,25 @@ final class VoiceAssistantService: NSObject {
     private func speakFallback(_ text: String) {
         audioPlayer?.stop()
         let utterance = AVSpeechUtterance(string: text)
-        utterance.voice = AVSpeechSynthesisVoice(language: "en-US")
+        let language = LocalizationManager.shared.currentLanguage
+        if let preferredIdentifier = preferredVoiceIdentifier(for: language),
+           let preferredVoice = AVSpeechSynthesisVoice(identifier: preferredIdentifier) {
+            utterance.voice = preferredVoice
+        } else {
+            let fallbackLanguageCode: String
+            switch language {
+            case .english:
+                fallbackLanguageCode = "en-US"
+            case .hindi:
+                fallbackLanguageCode = "hi-IN"
+            }
+            utterance.voice = AVSpeechSynthesisVoice(language: fallbackLanguageCode)
+        }
+        
+        utterance.rate = AVSpeechUtteranceDefaultSpeechRate * 0.85
+        utterance.pitchMultiplier = 1.05
+        utterance.preUtteranceDelay = 0.05
+        utterance.postUtteranceDelay = 0.05
         speechSynthesizer.speak(utterance)
     }
 
@@ -261,13 +281,54 @@ final class VoiceAssistantService: NSObject {
     func playGreetingIfNeeded() {
         guard !hasPlayedGreeting else { return }
         hasPlayedGreeting = true
-        speakFallback("How can I help you today?")
+        _ = playGreetingAudioIfAvailable()
     }
 
     @MainActor
     func stopSpeaking() {
         audioPlayer?.stop()
+        greetingAudioPlayer?.stop()
         speechSynthesizer.stopSpeaking(at: .immediate)
+    }
+    
+    private func preferredVoiceIdentifier(for language: AppLanguage) -> String? {
+        switch language {
+        case .english:
+            let premium = "com.apple.ttsbundle.Samantha-premium"
+            if AVSpeechSynthesisVoice(identifier: premium) != nil {
+                return premium
+            }
+            return "com.apple.ttsbundle.Samantha-compact"
+        case .hindi:
+            // Natural-sounding Hindi voice; fall back to compact variant if premium unavailable
+            let premium = "com.apple.ttsbundle.Priyanka-premium"
+            if AVSpeechSynthesisVoice(identifier: premium) != nil {
+                return premium
+            }
+            return "com.apple.ttsbundle.Priyanka-compact"
+        }
+    }
+    
+    @MainActor
+    private func playGreetingAudioIfAvailable() -> Bool {
+        guard let url = Bundle.main.url(forResource: "nani_reply", withExtension: "wav") else {
+            return false
+        }
+        
+        do {
+            speechSynthesizer.stopSpeaking(at: .immediate)
+            audioPlayer?.stop()
+            greetingAudioPlayer?.stop()
+            
+            let player = try AVAudioPlayer(contentsOf: url)
+            player.prepareToPlay()
+            player.play()
+            greetingAudioPlayer = player
+            return true
+        } catch {
+            debugLog("Failed to play greeting audio: \(error)")
+            return false
+        }
     }
 
     // MARK: - Debug

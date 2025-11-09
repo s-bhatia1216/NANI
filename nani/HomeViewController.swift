@@ -39,11 +39,23 @@ class HomeViewController: UIViewController {
     private let chatMessageLabel = UILabel()
     private let activityLogStackView = UIStackView()
 
+    // Localization
+    private let greetingsText = LocalizedText(english: "Good Morning, Maya", hindi: "सुप्रभात, माया")
+    private let voicePromptText = LocalizedText(english: "Ask me anything about your medicine, Maya.", hindi: "अपनी दवा के बारे में मुझसे कुछ भी पूछें, माया।")
+    private let nextMedicineTitleText = LocalizedText(english: "Next medicine", hindi: "अगली दवाई")
+    private let nextMedicineDetailText = LocalizedText(english: "Lisinopril at 8:00 AM", hindi: "सुबह 8:00 बजे लिसिनोप्रिल")
+    private let remindLaterText = LocalizedText(english: "Remind me later", hindi: "बाद में याद दिलाएं")
+    private let takenText = LocalizedText(english: "Taken", hindi: "ली गई")
+    private let careCircleTitleText = LocalizedText(english: "Your Care Circle", hindi: "आपका केयर सर्कल")
+    private let careCircleMessageText = LocalizedText(english: "Hope you're feeling well today!", hindi: "आशा है आज आप अच्छा महसूस कर रहे हैं!")
+    private let emptyActivityText = LocalizedText(english: "No recent activity.", hindi: "हाल में कोई गतिविधि नहीं।")
+    
     
     override func viewDidLoad() {
         super.viewDidLoad()
         setupUI()
         setupTheme()
+        updateLocalizedStrings()
         
         NotificationCenter.default.addObserver(
             self,
@@ -56,6 +68,13 @@ class HomeViewController: UIViewController {
             self,
             selector: #selector(medicationLogsUpdated),
             name: MedicationLogManager.logsUpdatedNotification,
+            object: nil
+        )
+        
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(languageDidChange),
+            name: .languageDidChange,
             object: nil
         )
     }
@@ -186,12 +205,12 @@ class HomeViewController: UIViewController {
         remindLaterButton.translatesAutoresizingMaskIntoConstraints = false
         remindLaterButton.addTarget(self, action: #selector(remindLaterTapped), for: .touchUpInside)
         nextMedicineContainer.addSubview(remindLaterButton)
-        applyActionButtonStyle(to: remindLaterButton, title: "Remind me later", systemImageName: "clock")
+        applyActionButtonStyle(to: remindLaterButton, text: remindLaterText, systemImageName: "clock")
         
         takenButton.translatesAutoresizingMaskIntoConstraints = false
         takenButton.addTarget(self, action: #selector(takenTapped), for: .touchUpInside)
         nextMedicineContainer.addSubview(takenButton)
-        applyActionButtonStyle(to: takenButton, title: "Taken", systemImageName: "checkmark")
+        applyActionButtonStyle(to: takenButton, text: takenText, systemImageName: "checkmark")
         
         // Stack buttons horizontally
         let buttonStackView = UIStackView(arrangedSubviews: [remindLaterButton, takenButton])
@@ -235,14 +254,26 @@ class HomeViewController: UIViewController {
         careCircleContainer.translatesAutoresizingMaskIntoConstraints = false
         careCircleContainer.backgroundColor = ThemeManager.shared.cardBackgroundColor
         careCircleContainer.layer.cornerRadius = 16
+        let careCircleTapGesture = UITapGestureRecognizer(target: self, action: #selector(careCircleTapped))
+        careCircleContainer.addGestureRecognizer(careCircleTapGesture)
+        careCircleContainer.isAccessibilityElement = true
+        careCircleContainer.accessibilityLabel = "Your Care Circle"
         contentView.addSubview(careCircleContainer)
+        
+        // Care Circle Content Stack
+        let careCircleContentStack = UIStackView()
+        careCircleContentStack.translatesAutoresizingMaskIntoConstraints = false
+        careCircleContentStack.axis = .horizontal
+        careCircleContentStack.spacing = 12
+        careCircleContentStack.alignment = .center
+        careCircleContainer.addSubview(careCircleContentStack)
         
         // Care Circle Members
         careCircleStackView.translatesAutoresizingMaskIntoConstraints = false
         careCircleStackView.axis = .horizontal
         careCircleStackView.spacing = 12
         careCircleStackView.alignment = .center
-        careCircleContainer.addSubview(careCircleStackView)
+        careCircleContentStack.addArrangedSubview(careCircleStackView)
         
         // Yash Profile
         let yashImage = UIImage(named: "yash") ?? createPlaceholderProfileImage()
@@ -258,7 +289,9 @@ class HomeViewController: UIViewController {
         chatBubbleView.translatesAutoresizingMaskIntoConstraints = false
         chatBubbleView.backgroundColor = ThemeManager.shared.lightBlue
         chatBubbleView.layer.cornerRadius = 12
-        careCircleContainer.addSubview(chatBubbleView)
+        chatBubbleView.setContentHuggingPriority(.required, for: .horizontal)
+        chatBubbleView.setContentCompressionResistancePriority(.required, for: .horizontal)
+        careCircleContentStack.addArrangedSubview(chatBubbleView)
         
         chatMessageLabel.translatesAutoresizingMaskIntoConstraints = false
         chatMessageLabel.text = "Hope you're feeling well today!"
@@ -289,13 +322,11 @@ class HomeViewController: UIViewController {
             careCircleContainer.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: 20),
             careCircleContainer.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -20),
             
-            careCircleStackView.topAnchor.constraint(equalTo: careCircleContainer.topAnchor, constant: 16),
-            careCircleStackView.leadingAnchor.constraint(equalTo: careCircleContainer.leadingAnchor, constant: 16),
-            careCircleStackView.trailingAnchor.constraint(lessThanOrEqualTo: chatBubbleView.leadingAnchor, constant: -12),
+            careCircleContentStack.topAnchor.constraint(equalTo: careCircleContainer.topAnchor, constant: 16),
+            careCircleContentStack.leadingAnchor.constraint(equalTo: careCircleContainer.leadingAnchor, constant: 16),
+            careCircleContentStack.trailingAnchor.constraint(equalTo: careCircleContainer.trailingAnchor, constant: -16),
+            careCircleContentStack.bottomAnchor.constraint(equalTo: careCircleContainer.bottomAnchor, constant: -16),
             
-            chatBubbleView.topAnchor.constraint(equalTo: careCircleContainer.topAnchor, constant: 16),
-            chatBubbleView.trailingAnchor.constraint(equalTo: careCircleContainer.trailingAnchor, constant: -16),
-            chatBubbleView.bottomAnchor.constraint(equalTo: careCircleContainer.bottomAnchor, constant: -16),
             chatBubbleView.widthAnchor.constraint(greaterThanOrEqualToConstant: 150),
             
             chatMessageLabel.topAnchor.constraint(equalTo: chatBubbleView.topAnchor, constant: 8),
@@ -331,13 +362,13 @@ class HomeViewController: UIViewController {
         chatBubbleView.backgroundColor = ThemeManager.shared.lightBlue
         chatMessageLabel.textColor = ThemeManager.shared.primaryBlue
         updateActivityLog()
-        applyActionButtonStyle(to: remindLaterButton, title: "Remind me later", systemImageName: "clock")
-        applyActionButtonStyle(to: takenButton, title: "Taken", systemImageName: "checkmark")
+        applyActionButtonStyle(to: remindLaterButton, text: remindLaterText, systemImageName: "clock")
+        applyActionButtonStyle(to: takenButton, text: takenText, systemImageName: "checkmark")
     }
 
-    private func applyActionButtonStyle(to button: UIButton, title: String, systemImageName: String) {
+    private func applyActionButtonStyle(to button: UIButton, text: LocalizedText, systemImageName: String) {
         var configuration = UIButton.Configuration.plain()
-        configuration.title = title
+        configuration.title = LocalizationManager.shared.localized(text)
         configuration.image = UIImage(systemName: systemImageName)
         configuration.imagePlacement = .leading
         configuration.imagePadding = 6
@@ -346,6 +377,21 @@ class HomeViewController: UIViewController {
         configuration.background.cornerRadius = 20
         configuration.background.backgroundColor = ThemeManager.shared.lightBlue
         button.configuration = configuration
+    }
+    
+    private func updateLocalizedStrings() {
+        let manager = LocalizationManager.shared
+        greetingLabel.text = manager.localized(greetingsText)
+        voicePromptLabel.text = manager.localized(voicePromptText)
+        nextMedicineLabel.text = manager.localized(nextMedicineTitleText)
+        medicineNameLabel.text = manager.localized(nextMedicineDetailText)
+        careCircleTitleLabel.text = manager.localized(careCircleTitleText)
+        chatMessageLabel.text = manager.localized(careCircleMessageText)
+        applyActionButtonStyle(to: remindLaterButton, text: remindLaterText, systemImageName: "clock")
+        applyActionButtonStyle(to: takenButton, text: takenText, systemImageName: "checkmark")
+        let languageAccessibility = manager.localized(english: "Change language", hindi: "भाषा बदलें")
+        languageButton.accessibilityLabel = languageAccessibility
+        updateActivityLog()
     }
     
     // MARK: - Helper Methods
@@ -373,23 +419,16 @@ class HomeViewController: UIViewController {
         imageView.layer.cornerRadius = 30
         container.addSubview(imageView)
         
-        let nameLabel = UILabel()
-        nameLabel.translatesAutoresizingMaskIntoConstraints = false
-        nameLabel.text = name
-        nameLabel.font = UIFont.systemFont(ofSize: 12)
-        nameLabel.textColor = ThemeManager.shared.textColor
-        nameLabel.textAlignment = .center
-        container.addSubview(nameLabel)
+        container.isAccessibilityElement = true
+        container.accessibilityLabel = name
         
         NSLayoutConstraint.activate([
             imageView.topAnchor.constraint(equalTo: container.topAnchor),
-            imageView.centerXAnchor.constraint(equalTo: container.centerXAnchor),
+            imageView.leadingAnchor.constraint(equalTo: container.leadingAnchor),
+            imageView.trailingAnchor.constraint(equalTo: container.trailingAnchor),
             imageView.widthAnchor.constraint(equalToConstant: 60),
             imageView.heightAnchor.constraint(equalToConstant: 60),
-            
-            nameLabel.topAnchor.constraint(equalTo: imageView.bottomAnchor, constant: 8),
-            nameLabel.centerXAnchor.constraint(equalTo: container.centerXAnchor),
-            nameLabel.bottomAnchor.constraint(equalTo: container.bottomAnchor)
+            imageView.bottomAnchor.constraint(equalTo: container.bottomAnchor)
         ])
         
         return container
@@ -415,11 +454,11 @@ class HomeViewController: UIViewController {
         let titleLabel = UILabel()
         titleLabel.font = UIFont.systemFont(ofSize: 14, weight: .semibold)
         titleLabel.textColor = ThemeManager.shared.textColor
-        titleLabel.text = log.displayText
+        titleLabel.text = log.localizedDisplayText
         titleLabel.numberOfLines = 0
         textStack.addArrangedSubview(titleLabel)
         
-        if let detail = log.detailText, !detail.isEmpty {
+        if let detail = log.localizedDetailText, !detail.isEmpty {
             let detailLabel = UILabel()
             detailLabel.font = UIFont.systemFont(ofSize: 12)
             detailLabel.textColor = ThemeManager.shared.secondaryTextColor
@@ -456,7 +495,7 @@ class HomeViewController: UIViewController {
         if logs.isEmpty {
             let emptyLabel = UILabel()
             emptyLabel.translatesAutoresizingMaskIntoConstraints = false
-            emptyLabel.text = "No recent activity."
+            emptyLabel.text = LocalizationManager.shared.localized(emptyActivityText)
             emptyLabel.font = UIFont.systemFont(ofSize: 14)
             emptyLabel.textColor = ThemeManager.shared.secondaryTextColor
             activityLogStackView.addArrangedSubview(emptyLabel)
@@ -527,15 +566,42 @@ class HomeViewController: UIViewController {
     
     // MARK: - Actions
     @objc private func languageButtonTapped() {
-        let alert = UIAlertController(title: "Language", message: "Select your preferred language", preferredStyle: .actionSheet)
-        let languages = ["English", "Spanish", "Hindi", "Mandarin", "French", "Arabic"]
-        for language in languages {
-            alert.addAction(UIAlertAction(title: language, style: .default) { _ in
-                // TODO: Implement language change
-                print("Selected language: \(language)")
-            })
+        let manager = LocalizationManager.shared
+        let title = manager.localized(english: "Language", hindi: "भाषा")
+        let message = manager.localized(english: "Select your preferred language", hindi: "अपनी पसंदीदा भाषा चुनें")
+        let alert = UIAlertController(title: title, message: message, preferredStyle: .actionSheet)
+        
+        let coreLanguages: [(LocalizedText, AppLanguage?)] = [
+            (LocalizedText(english: "English", hindi: "अंग्रेज़ी"), .english),
+            (LocalizedText(english: "Hindi", hindi: "हिन्दी"), .hindi),
+            (LocalizedText(english: "Spanish", hindi: "स्पैनिश"), nil),
+            (LocalizedText(english: "Mandarin", hindi: "मंदारिन"), nil),
+            (LocalizedText(english: "French", hindi: "फ़्रेंच"), nil),
+            (LocalizedText(english: "Arabic", hindi: "अरबी"), nil)
+        ]
+        
+        coreLanguages.forEach { entry in
+            let (label, language) = entry
+            let baseTitle = manager.localized(label)
+            let actionTitle: String
+            if let language, manager.isCurrentLanguage(language) {
+                actionTitle = "\(baseTitle) ✓"
+            } else {
+                actionTitle = baseTitle
+            }
+            
+            let action = UIAlertAction(title: actionTitle, style: .default) { _ in
+                guard let language else {
+                    print("Language option coming soon: \(label.english)")
+                    return
+                }
+                LocalizationManager.shared.setLanguage(language)
+            }
+            alert.addAction(action)
         }
-        alert.addAction(UIAlertAction(title: "Cancel", style: .cancel))
+        
+        let cancelTitle = manager.localized(english: "Cancel", hindi: "रद्द करें")
+        alert.addAction(UIAlertAction(title: cancelTitle, style: .cancel))
         
         if let popover = alert.popoverPresentationController {
             popover.sourceView = languageButton
@@ -577,6 +643,15 @@ class HomeViewController: UIViewController {
     @objc private func takenTapped() {
         // TODO: Mark medicine as taken
         print("Taken tapped")
+    }
+    
+    @objc private func languageDidChange() {
+        updateLocalizedStrings()
+    }
+    
+    @objc private func careCircleTapped() {
+        let careCircleVC = CareCircleViewController()
+        navigationController?.pushViewController(careCircleVC, animated: true)
     }
     
     @objc private func themeDidChange() {
