@@ -91,7 +91,7 @@ NANI is a full-stack IoT system integrating hardware sensors, cloud services, mo
 ### 2. Backend Services (Node.js)
 
 **Technology Stack:**
-- Node.js 18+ with Express
+- Node.js 20+ with Express
 - OpenAI API (Whisper STT, GPT-4o-mini, TTS)
 - Multer for audio file handling
 - WebSocket support for real-time communication
@@ -105,12 +105,8 @@ NANI is a full-stack IoT system integrating hardware sensors, cloud services, mo
 - Synthesizes speech using OpenAI TTS
 - Returns both text transcript and base64-encoded audio
 
-**`GET /health`**
-- Returns server status and configured model information
-
 **Persona Configuration:**
 NANI is configured as a warm, encouraging AI caretaker:
-- Short, upbeat sentences (~30 seconds of speech)
 - Acknowledges feelings before providing concrete next steps
 - Tracks adherence and safety (dizziness, missed pills, BP spikes)
 - Offers proactive help (reminders, hydration tips, caregiver updates)
@@ -150,9 +146,9 @@ NANI is configured as a warm, encouraging AI caretaker:
 - Adherence tracking and history
 
 **Care Circle:**
-- Family member profiles (Raj, Priya, Anika)
+- Family member profiles
 - In-app messaging and notifications
-- Activity sharing with caregivers
+- Activity sharing with caregivers (doctors / nurses)
 - Emergency contact integration
 
 **Key Files:**
@@ -369,9 +365,9 @@ Special thanks to:
 
 ---
 
-## 📞 Contact & Support
+## 📞 Support
 
-For questions, contributions, or collaboration opportunities, please reach out to the team.
+For questions, contributions, or collaboration opportunities, please reach out at yt5693@princeton.edu or sb7264@princeton.edu.
 
 ---
 
