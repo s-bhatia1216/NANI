@@ -38,7 +38,7 @@ NANI is a full-stack IoT system integrating hardware sensors, cloud services, mo
                       └──────────────────────────────┘
 
        ┌───────────────────────┐           ┌──────────────────────┐
-       │     Raspberry Pi      │◄────────►│       iOS App         │
+       │     Raspberry Pi      │◄─────────►│       iOS App         │
        │  + IR Beam Sensor     │           │       (Swift)         │
        │                       │           │  • Medication Tracking│
        │                       │           │  • Voice AI Assistant │
@@ -49,7 +49,7 @@ NANI is a full-stack IoT system integrating hardware sensors, cloud services, mo
                   │                         ┌─────────▼──────────┐
                   │                         │   Node.js Backend   │
                   │                         │ (Express + OpenAI)  │
-                  └────────────────────────► │ • Voice Processing  │
+                  └───────────────────────► │ • Voice Processing  │
                                             │ • Med Logging       │
                                             │ • Care Notifications│
                                             └─────────┬───────────┘
